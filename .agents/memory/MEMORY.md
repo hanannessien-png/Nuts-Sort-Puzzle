@@ -1,1 +1,2 @@
 - [Expo compatibility](expo-compatibility.md) — newer React Native style APIs and native ad imports that require web module isolation.
+- [Stack orientation checks](stack-orientation.md) — correct engine top semantics do not prove the visually topmost piece is the one moving.

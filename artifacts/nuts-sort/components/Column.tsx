@@ -1,89 +1,86 @@
-import React from 'react';
-import { View, Pressable, StyleSheet } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming, useReducedMotion } from 'react-native-reanimated';
 import { Nut } from './Nut';
 import { Bolt } from './Bolt';
-import { useNutPalette } from '@/hooks/useThemeColors';
+import { useNutPalette, useThemeColors } from '@/hooks/useThemeColors';
+import type { BoardGeometry } from './boardGeometry';
 
 interface ColumnProps {
   index: number;
-  nuts: number[]; // Array of color IDs
-  capacity: number;
-  isSelected: boolean;
+  nuts: number[];
+  geometry: BoardGeometry;
+  selected: boolean;
+  disabled: boolean;
+  hintSource: boolean;
+  hintTarget: boolean;
+  colorLabels: boolean;
+  hiddenRow?: number;
   onTap: (index: number) => void;
-  isHintTarget: boolean;
-  isHintSource: boolean;
 }
 
-export function Column({ index, nuts, capacity, isSelected, onTap, isHintTarget, isHintSource }: ColumnProps) {
+export function Column({ index, nuts, geometry: g, selected, disabled, hintSource, hintTarget, colorLabels, hiddenRow, onTap }: ColumnProps) {
   const palette = useNutPalette();
-  
-  // Nut height approx 33px effective (60 * 0.55), bolt should be tall enough for capacity + 1 (for empty space)
-  const nutSize = 60;
-  const effectiveNutHeight = nutSize * 0.55 + 2; // + margin
-  const boltHeight = (capacity + 0.5) * effectiveNutHeight;
-
+  const theme = useThemeColors();
   return (
-    <Pressable onPress={() => onTap(index)} style={styles.container}>
-      <View style={{ height: boltHeight, width: nutSize, alignItems: 'center', justifyContent: 'flex-end' }}>
-        <View style={StyleSheet.absoluteFill}>
-          <Bolt height={boltHeight} width={nutSize} />
-        </View>
-        
-        {/* Render nuts from bottom to top */}
-        <View style={styles.nutsContainer}>
-          {nuts.map((colorId, i) => {
-            const isTop = i === nuts.length - 1;
-            const nutIsSelected = isTop && isSelected;
-            const isHint = (isTop && isHintSource) || (isHintTarget && isTop);
-            
-            return (
-              <Nut
-                key={`${index}-${i}-${colorId}`}
-                color={palette[colorId % palette.length]}
-                isSelected={nutIsSelected}
-                isHint={isHint}
-                size={nutSize}
-              />
-            );
-          })}
-          
-          {/* If it's a hint target but empty, we can show a ghost nut or just rely on the column highlight */}
-          {nuts.length === 0 && isHintTarget && (
-             <View style={{ opacity: 0.3 }}>
-               <Nut color={palette[0]} size={nutSize} isHint={true} />
-             </View>
-          )}
-        </View>
+    <Pressable
+      testID={`column-${index}`}
+      accessibilityRole="button"
+      accessibilityLabel={`Column ${index + 1}; bottom to top: ${nuts.join(',') || 'empty'}; top: ${nuts.at(-1) ?? 'empty'}`}
+      accessibilityState={{ selected, disabled }}
+      disabled={disabled}
+      onPress={() => onTap(index)}
+      style={{ position: 'absolute', left: 16 + index * g.cell, top: 0, width: g.cell, height: g.height, zIndex: selected ? 20 : 1 }}
+    >
+      <View testID={`bolt-${index}`} pointerEvents="none" style={{ position: 'absolute', top: g.tipY, left: 9 }}>
+        <Bolt height={g.rodHeight} width={g.nutSize} />
       </View>
-      
-      {/* Selection/Hint indicator at the base */}
-      {(isSelected || isHintSource || isHintTarget) && (
-        <View style={[
-          styles.indicator, 
-          { backgroundColor: isSelected ? 'rgba(59, 130, 246, 0.5)' : 'rgba(16, 185, 129, 0.5)' }
-        ]} />
-      )}
+      {nuts.map((color, row) => (
+        <StackNut
+          key={`${row}-${color}`}
+          testID={`nut-${index}-${row}`}
+          color={palette[color % palette.length]}
+          label={colorLabels ? String.fromCharCode(65 + color) : undefined}
+          y={g.y(row)}
+          liftY={g.liftY}
+          size={g.nutSize}
+          selected={selected && row === nuts.length - 1}
+          hidden={hiddenRow === row}
+          zIndex={row + 1}
+        />
+      ))}
+      <View pointerEvents="none" style={[styles.marker, {
+        top: g.baseY + 23,
+        backgroundColor: selected ? theme.primary : hintSource || hintTarget ? theme.success : 'transparent',
+      }]}>
+        <Text style={{ color: selected || hintSource || hintTarget ? theme.surface : theme.textMuted, fontSize: 11, fontWeight: '700', letterSpacing: 1 }}>
+          {hintSource ? 'FROM' : hintTarget ? 'TO' : String(index + 1).padStart(2, '0')}
+        </Text>
+      </View>
     </Pressable>
   );
 }
 
+function StackNut({ color, label, testID, y, liftY, size, selected, hidden, zIndex }: {
+  color: string; label?: string; testID: string; y: number; liftY: number; size: number;
+  selected: boolean; hidden: boolean; zIndex: number;
+}) {
+  const reduced = useReducedMotion();
+  const offset = useSharedValue(selected ? liftY - y : 0);
+  useEffect(() => {
+    offset.value = withTiming(selected ? liftY - y : 0, { duration: reduced ? 0 : 180 });
+  }, [selected, liftY, y, reduced, offset]);
+  const animated = useAnimatedStyle(() => ({ transform: [{ translateY: offset.value }] }));
+  return (
+    <Animated.View testID={testID} pointerEvents="none" style={[{
+      position: 'absolute', top: y, left: 9, opacity: hidden ? 0 : 1,
+      zIndex: selected ? 100 : zIndex,
+    }, animated]}>
+      <Nut color={color} size={size} label={label} />
+    </Animated.View>
+  );
+}
+
 const styles = StyleSheet.create({
-  container: {
-    marginHorizontal: 8,
-    marginVertical: 16,
-    alignItems: 'center',
-    paddingBottom: 20, // For base
-  },
-  nutsContainer: {
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    paddingBottom: 5,
-  },
-  indicator: {
-    position: 'absolute',
-    bottom: 5,
-    width: 60,
-    height: 10,
-    borderRadius: 5,
-  }
+  marker: { position: 'absolute', alignSelf: 'center', minWidth: 32, paddingHorizontal: 6, height: 21, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
 });

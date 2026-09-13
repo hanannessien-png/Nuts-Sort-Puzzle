@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useAudioPlayer } from 'expo-audio';
@@ -6,6 +6,7 @@ import { CATALOG, POWER_PRICES, equipPurchased, itemPrice } from './catalogue';
 import { advanceCalendar, initialState, scoreRun } from './economy';
 import { applyMove, generateLevel, isSolved, solveBoard } from './engine';
 import { readSave, writeSave } from './persistence';
+import { ActivePlayClock, elapseAttempt } from './timing';
 import {
   adAvailability, initializeAds, isAdShowing,
   showAppOpenAd, showInterstitialAd, showRewardedAd,
@@ -33,7 +34,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [notice, setNotice] = useState<string | null>(null);
   const [ads, setAds] = useState({ available: false, message: 'Ads are loading.' });
   const visible = useRef(false);
-  const foreground = useRef(AppState.currentState !== 'background');
+  const foreground = useRef(AppState.currentState == null || AppState.currentState === 'active');
+  const playClock = useRef(new ActivePlayClock(mono()));
   const session = useRef({ wall: Date.now(), mono: mono() });
   const generation = useRef(0);
   const lastSaved = useRef(mono());
@@ -63,6 +65,30 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     void publish(next, persist).catch(() => undefined);
   }
 
+  function advancePlayClock() {
+    const now = mono();
+    const s = current.current;
+    const running = loadedRef.current && !storageFault.current && visible.current
+      && foreground.current && !operation.current && !adLock.current
+      && !isAdShowing() && s.active?.status === 'playing';
+    const delta = playClock.current.sample(now, running);
+    if (!loadedRef.current || storageFault.current) return;
+    const active = elapseAttempt(s.active, delta);
+    if (active !== s.active) {
+      store({ ...s, active }, active?.status !== s.active?.status || now - lastSaved.current > 2000);
+    }
+  }
+
+  const setPlaying = useCallback((playing: boolean) => {
+    const wasPlaying = visible.current;
+    visible.current = playing;
+    advancePlayClock();
+    if (wasPlaying && !playing && loadedRef.current && !storageFault.current) {
+      // Persist the fraction of a tick spent playing before leaving the board.
+      store(current.current);
+    }
+  }, []);
+
   function feedback(win = false) {
     if (current.current.settings.haptics) {
       void (win
@@ -84,6 +110,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       if (storageFault.current && loadedRef.current) {
         await writeSave(current.current);
         storageFault.current = false;
+        advancePlayClock();
         return;
       }
       const saved = await readSave();
@@ -97,6 +124,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       setLoaded(true);
       storageFault.current = false;
       session.current = { wall: Date.now(), mono: mono() };
+      advancePlayClock();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not load your progress. Please try again.');
     }
@@ -111,9 +139,11 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       // Do not interrupt gameplay if initialization finished after the player entered it.
       if (!visible.current && foreground.current) {
         adLock.current = true;
+        advancePlayClock();
         setAdBusy(true);
         try { await showAppOpenAd(); } finally {
           adLock.current = false;
+          advancePlayClock();
           if (!cancelled) setAdBusy(false);
         }
       }
@@ -124,6 +154,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const sub = AppState.addEventListener('change', next => {
       foreground.current = next === 'active';
+      advancePlayClock();
       if (loadedRef.current) {
         // A backgrounded attempt resumes with the SAME remaining time, never a fresh timer.
         void writeSave(current.current).catch(() => {
@@ -132,25 +163,16 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         });
       }
     });
-    let previous = mono();
-    let calendarChecked = previous;
+    let calendarChecked = mono();
     const timer = setInterval(() => {
       const nowMono = mono();
-      const delta = Math.max(0, (nowMono - previous) / 1000);
-      previous = nowMono;
+      advancePlayClock();
       if (!loadedRef.current || storageFault.current) return;
       let next = current.current;
       if (foreground.current && nowMono - calendarChecked > 1000) {
         calendarChecked = nowMono;
         const expected = session.current.wall + nowMono - session.current.mono;
         next = advanceCalendar(next, Date.now(), Math.abs(Date.now() - expected) > 120_000);
-      }
-      if (visible.current && foreground.current && !operation.current && !adLock.current && !isAdShowing() && next.active?.status === 'playing') {
-        const remaining = Math.max(0, next.active.remaining - delta);
-        next = {
-          ...next,
-          active: { ...next.active, remaining, elapsed: next.active.elapsed + delta, status: remaining <= 0 ? 'timeout' : 'playing' },
-        };
       }
       if (next !== current.current) {
         const important = next.active?.status !== current.current.active?.status
@@ -165,21 +187,23 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     if (!loadedRef.current || storageFault.current) return fail('Progress is not ready. Please use Retry first.');
     if (operation.current || adLock.current) return fail('Please wait for the current action to finish.');
     operation.current = true;
+    advancePlayClock();
     setBusy(true);
     try { return await work(); }
     catch (e) { return fail(e instanceof Error ? e.message : 'That action could not be completed. Please try again.'); }
-    finally { operation.current = false; setBusy(false); }
+    finally { operation.current = false; advancePlayClock(); setBusy(false); }
   }
 
   async function rewarded(): Promise<boolean> {
     adLock.current = true;
+    advancePlayClock();
     setAdBusy(true);
     try {
       const result = await showRewardedAd();
       setAds(adAvailability());
       if (!result.earned) setNotice(result.message ?? 'The ad was not completed. Nothing has been charged or awarded.');
       return result.earned;
-    } finally { adLock.current = false; setAdBusy(false); }
+    } finally { adLock.current = false; advancePlayClock(); setAdBusy(false); }
   }
 
   async function startLevel(id: number): Promise<ActionResult> {
@@ -250,6 +274,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   }
 
   function tapColumn(index: number) {
+    advancePlayClock();
     const s = current.current;
     const a = s.active;
     if (!loadedRef.current || storageFault.current || operation.current || adLock.current || !a || a.status !== 'playing') return;
@@ -267,6 +292,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   }
 
   function resetLevel() {
+    advancePlayClock();
     const s = current.current, a = s.active;
     if (storageFault.current || operation.current || adLock.current || !a || a.status !== 'playing') return;
     const initial = s.levels[a.levelId]!;
@@ -420,7 +446,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     state, loaded, busy, error, notice, adBusy, adsAvailable: ads.available,
     adStatus: ads.message, catalog: CATALOG,
     startLevel, tapColumn, resetLevel,
-    setPlaying: playing => { visible.current = playing; },
+    setPlaying,
     abandonTimeout, usePowerUp, continueByAd, gainLifeByAd, doubleReward,
     buyItem, equipItem, updateSettings, clearNotice: () => setNotice(null),
     retryLoad: () => { void hydrate(); },

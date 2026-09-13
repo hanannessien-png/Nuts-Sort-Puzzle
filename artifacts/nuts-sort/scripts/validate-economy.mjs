@@ -30,6 +30,7 @@ assert.equal(advanceCalendar(exhausted, at(38)).lives, 5);
 
 const level = { id: 1, optimalMoves: 10 };
 assert.equal(scoreRun(level, 10, 10).stars, 5);
+assert.equal(scoreRun({ id: 1, optimalMoves: 2 }, 2, 90).stars, 5, 'Optimal moves earn five stars even when playing slowly');
 assert.equal(scoreRun(level, 1000, 10000).stars, 1);
 assert.deepEqual(scoreRun(level, 12, 20), scoreRun({ ...level, id: 1000 }, 12, 20));
 assert.ok(scoreRun(level, 10, 10).reward > scoreRun(level, 10, 80).reward);

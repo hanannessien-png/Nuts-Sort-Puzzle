@@ -24,20 +24,20 @@ export function LifeRefillModal({ visible, onClose }: Props) {
       <View style={styles.overlay}>
         <View style={[styles.card, { backgroundColor: theme.surface }]}>
           <Pressable onPress={onClose} style={styles.closeBtn}>
-            <Ionicons name="close" size={24} color={theme.textMuted} />
+            <Ionicons name="close" size={28} color={theme.textMuted} />
           </Pressable>
           
-          <Ionicons name="heart" size={48} color={theme.danger} style={{ alignSelf: 'center', marginBottom: 12 }} />
+          <Ionicons name="heart" size={64} color={theme.danger} style={{ alignSelf: 'center', marginBottom: 16 }} />
           <Text style={[styles.title, { color: theme.text }]}>Out of Lives?</Text>
           
-          <View style={[styles.livesBox, { backgroundColor: theme.danger + '20' }]}>
-            <Text style={{ color: theme.danger, fontWeight: 'bold', fontSize: 16 }}>
+          <View style={[styles.livesBox, { backgroundColor: theme.danger + '1A' }]}>
+            <Text style={{ color: theme.danger, fontWeight: '800', fontSize: 18 }}>
               {game.state?.lives ?? 0} / 5 Lives
             </Text>
           </View>
           
-          <Text style={{ textAlign: 'center', color: theme.textMuted, marginBottom: 24, paddingHorizontal: 16 }}>
-            Watch a short video ad to refill 1 life and keep playing.
+          <Text style={{ textAlign: 'center', color: theme.textMuted, marginBottom: 32, paddingHorizontal: 16, fontSize: 16, lineHeight: 24 }}>
+            Watch a short video ad to refill 1 life and keep playing your puzzle.
           </Text>
           
           <Pressable 
@@ -45,9 +45,9 @@ export function LifeRefillModal({ visible, onClose }: Props) {
             onPress={handleWatchAd}
             disabled={!game.adsAvailable || game.adBusy || (game.state?.lives ?? 0) >= 5}
           >
-            <Ionicons name="play" size={20} color="#FFF" />
-            <Text style={{ color: '#FFF', fontWeight: 'bold', fontSize: 16 }}>
-              {!game.adsAvailable ? 'Ad unavailable in preview' : game.adBusy ? 'Loading...' : (game.state?.lives ?? 0) >= 5 ? 'Max Lives Reached' : '+1 Life (Ad)'}
+            <Ionicons name="play" size={24} color="#FFF" />
+            <Text style={{ color: '#FFF', fontWeight: '800', fontSize: 18, letterSpacing: 1 }}>
+              {!game.adsAvailable ? 'UNAVAILABLE IN PREVIEW' : game.adBusy ? 'LOADING...' : (game.state?.lives ?? 0) >= 5 ? 'MAX LIVES' : '+1 LIFE (AD)'}
             </Text>
           </Pressable>
         </View>
@@ -59,39 +59,40 @@ export function LifeRefillModal({ visible, onClose }: Props) {
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'flex-end',
   },
   card: {
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     padding: 24,
-    paddingBottom: 40,
+    paddingBottom: 48,
   },
   closeBtn: {
     alignSelf: 'flex-end',
     padding: 8,
   },
   title: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: '900',
     textAlign: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
+    letterSpacing: -0.5,
   },
   livesBox: {
     alignSelf: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 16,
-    marginBottom: 16,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 20,
+    marginBottom: 24,
   },
   btn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 16,
-    borderRadius: 16,
+    gap: 12,
+    paddingVertical: 20,
+    borderRadius: 20,
     width: '100%',
   }
 });

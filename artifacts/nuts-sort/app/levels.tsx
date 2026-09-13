@@ -6,6 +6,7 @@ import { useGame } from '@/game/GameProvider';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { Ionicons } from '@expo/vector-icons';
 import { LifeRefillModal } from '@/components/LifeRefillModal';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function LevelsScreen() {
   const router = useRouter();
@@ -42,15 +43,21 @@ export default function LevelsScreen() {
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <Stack.Screen options={{ headerShown: false }} />
       
-      <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) }]}>
+      <LinearGradient 
+        colors={[`${theme.surface}00`, `${theme.surface}60`, theme.background]} 
+        style={StyleSheet.absoluteFill} 
+        pointerEvents="none"
+      />
+      
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, 16) }]}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="close" size={28} color={theme.text} />
+          <Ionicons name="close" size={32} color={theme.text} />
         </Pressable>
-        <Text style={[styles.title, { color: theme.text }]}>Levels</Text>
-        <View style={{ width: 44 }} />
+        <Text style={[styles.title, { color: theme.text }]}>JOURNEY</Text>
+        <View style={{ width: 48 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.grid}>
           {levels.map((levelId) => {
             const isUnlocked = levelId <= unlocked;
@@ -61,30 +68,31 @@ export default function LevelsScreen() {
               <Pressable 
                 key={levelId}
                 onPress={() => isUnlocked && handlePlayLevel(levelId)}
-                style={[
+                style={({ pressed }) => [
                   styles.levelCard,
                   { 
-                    backgroundColor: isUnlocked ? theme.surface : theme.border,
+                    backgroundColor: isLatest ? theme.primary : theme.surface,
                     borderColor: isLatest ? theme.primary : theme.border,
-                    borderWidth: isLatest ? 2 : 1,
-                  }
+                    borderWidth: 1,
+                  },
+                  pressed && { transform: [{ scale: 0.95 }] }
                 ]}
               >
                 <Text style={[
                   styles.levelNumber, 
-                  { color: isUnlocked ? theme.text : theme.textMuted }
+                  { color: isLatest ? '#FFF' : theme.text }
                 ]}>
                   {levelId}
                 </Text>
 
                 {record && record.stars > 0 && (
-                  <View style={styles.stars}>
-                    {[1, 2, 3].map(s => (
+                  <View style={styles.stars} accessibilityLabel={`${record.stars} out of 5 stars`}>
+                    {[1, 2, 3, 4, 5].map(s => (
                       <Ionicons 
                         key={s} 
                         name="star" 
-                        size={12} 
-                        color={s <= record.stars ? theme.warning : theme.border} 
+                        size={10}
+                        color={s <= record.stars ? theme.warning : (isLatest ? 'rgba(255,255,255,0.3)' : theme.border)} 
                       />
                     ))}
                   </View>
@@ -92,8 +100,13 @@ export default function LevelsScreen() {
                 
                 {isLatest && !record && (
                   <View style={styles.stars}>
-                    <Text style={{ color: theme.primary, fontSize: 10, fontWeight: '700' }}>NEW</Text>
+                    <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '900', letterSpacing: 1.5 }}>NEW</Text>
                   </View>
+                )}
+                {!isLatest && !record && (
+                   <View style={styles.stars}>
+                     <Ionicons name="lock-open" size={14} color={theme.border} />
+                   </View>
                 )}
               </Pressable>
             );
@@ -113,33 +126,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingBottom: 20,
+    zIndex: 10,
   },
   backBtn: { padding: 8 },
-  title: { fontSize: 20, fontWeight: '700' },
+  title: { fontSize: 22, fontWeight: '900', letterSpacing: 2 },
   content: {
-    padding: 16,
+    padding: 24,
+    paddingBottom: 80,
   },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 16,
+    justifyContent: 'space-between',
+    rowGap: 24,
   },
   levelCard: {
     width: '30%',
     aspectRatio: 1,
-    borderRadius: 16,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    elevation: 2,
+    elevation: 4,
     shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
   },
   levelNumber: {
-    fontSize: 24,
-    fontWeight: '800',
+    fontSize: 32,
+    fontWeight: '900',
   },
   stars: {
     flexDirection: 'row',

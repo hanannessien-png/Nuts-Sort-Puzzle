@@ -10,103 +10,103 @@ export const THEMES: Record<string, {
   success: string;
   warning: string;
 }> = {
-  default: {
-    background: '#F8FAFC',
-    surface: '#FFFFFF',
-    text: '#0F172A',
-    textMuted: '#64748B',
-    primary: '#3B82F6',
-    primaryMuted: '#DBEAFE',
-    border: '#E2E8F0',
-    danger: '#EF4444',
-    success: '#10B981',
-    warning: '#F59E0B',
+  default: { 
+    background: '#F0EBE1', 
+    surface: '#FDFBF7', 
+    text: '#2A2624', 
+    textMuted: '#8C857E',
+    primary: '#C46D42', 
+    primaryMuted: '#EED9CE',
+    border: '#DED8D0',
+    danger: '#D95047',
+    success: '#4E8A63',
+    warning: '#D49A36',
   },
-  midnight: {
-    background: '#0F172A',
-    surface: '#1E293B',
-    text: '#F8FAFC',
-    textMuted: '#94A3B8',
-    primary: '#60A5FA',
-    primaryMuted: '#1E3A8A',
-    border: '#334155',
-    danger: '#F87171',
-    success: '#34D399',
-    warning: '#FBBF24',
+  midnight: { 
+    background: '#1A1817',
+    surface: '#262423',
+    text: '#F0EBE1',
+    textMuted: '#A69E96',
+    primary: '#D98A60',
+    primaryMuted: '#5C3A27',
+    border: '#3D3A38',
+    danger: '#E06B62',
+    success: '#629E74',
+    warning: '#E6B24D',
   },
   ocean: {
-    background: '#F0F9FF',
-    surface: '#FFFFFF',
-    text: '#0C4A6E',
-    textMuted: '#0284C7',
-    primary: '#0EA5E9',
-    primaryMuted: '#E0F2FE',
-    border: '#BAE6FD',
-    danger: '#E11D48',
-    success: '#059669',
-    warning: '#D97706',
+    background: '#152129',
+    surface: '#20303A',
+    text: '#E8F1F5',
+    textMuted: '#9AB2C2',
+    primary: '#4795AB',
+    primaryMuted: '#244F5E',
+    border: '#324654',
+    danger: '#D95047',
+    success: '#4E8A63',
+    warning: '#CCA352',
   },
   blossom: {
-    background: '#FDF2F8',
-    surface: '#FFFFFF',
-    text: '#831843',
-    textMuted: '#BE185D',
-    primary: '#EC4899',
-    primaryMuted: '#FCE7F3',
-    border: '#FBCFE8',
-    danger: '#E11D48',
-    success: '#10B981',
-    warning: '#F59E0B',
+    background: '#2B1B22',
+    surface: '#3D2833',
+    text: '#F5EBF0',
+    textMuted: '#C2A3B3',
+    primary: '#B85481',
+    primaryMuted: '#5C2A40',
+    border: '#543B47',
+    danger: '#D95047',
+    success: '#4E8A63',
+    warning: '#CCA352',
   },
   candy: {
-    background: '#FAF5FF',
-    surface: '#FFFFFF',
-    text: '#581C87',
-    textMuted: '#7E22CE',
-    primary: '#A855F7',
-    primaryMuted: '#F3E8FF',
-    border: '#E9D5FF',
-    danger: '#EF4444',
-    success: '#10B981',
-    warning: '#F59E0B',
+    background: '#211B29',
+    surface: '#2E2638',
+    text: '#EFEBF5',
+    textMuted: '#AFA3C2',
+    primary: '#8854B8',
+    primaryMuted: '#442A5C',
+    border: '#453B54',
+    danger: '#D95047',
+    success: '#4E8A63',
+    warning: '#CCA352',
   },
 };
 
 export const NUT_PALETTES: Record<string, string[]> = {
   default: [
-    '#EF4444', // Red
-    '#3B82F6', // Blue
-    '#10B981', // Green
-    '#F59E0B', // Yellow
-    '#8B5CF6', // Purple
-    '#F97316', // Orange
-    '#EC4899', // Pink
-    '#06B6D4', // Cyan
-    '#84CC16', // Lime
-    '#14B8A6', // Teal
+    '#C43D35', // Ruby
+    '#3B6BC4', // Sapphire
+    '#418A53', // Emerald
+    '#D99C2B', // Gold
+    '#744A99', // Amethyst
+    '#C96B32', // Copper
+    '#B53F6F', // Rose
+    '#3399B5', // Turquoise
+    '#82A133', // Olivine
+    '#2E8282', // Teal
   ],
   pastel: [
-    '#FCA5A5',
-    '#93C5FD',
-    '#6EE7B7',
-    '#FCD34D',
-    '#C4B5FD',
-    '#FDBA74',
-    '#F9A8D4',
-    '#67E8F9',
-    '#BEF264',
-    '#5EEAD4',
+    '#D97C77',
+    '#779CD9',
+    '#7C9E87',
+    '#E6B96E',
+    '#A082B3',
+    '#D99777',
+    '#CC7E9E',
+    '#77BBD9',
+    '#A4BD72',
+    '#6EA6A6',
   ],
   neon: [
-    '#FF003C',
-    '#00E5FF',
-    '#39FF14',
-    '#FFE600',
-    '#BF00FF',
-    '#FF5F00',
-    '#FF00A0',
-    '#00FFFF',
-    '#CCFF00',
-    '#00FF85',
+    '#FF3333',
+    '#3388FF',
+    '#33FF66',
+    '#FFCC00',
+    '#9933FF',
+    '#FF7700',
+    '#FF3399',
+    '#00EEEE',
+    '#AAFF00',
+    '#00FF99',
   ]
 };

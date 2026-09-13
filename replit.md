@@ -55,6 +55,13 @@ Questions to this user about this game must be in Arabic. Do not re-ask settled 
 - AdMob requires a native development/release build; a web screenshot cannot validate native ad delivery or consent.
 - Audio is playback-only; microphone, background playback and recording permissions are disabled.
 
+## Visual and interaction requirements
+
+- The user explicitly rejected a sparse, generic-looking opening screen. Keep the game tactile and detailed, with a cohesive premium light default, custom title artwork, dimensional pieces and polished supporting screens.
+- A movable nut must be the visually topmost nut. It lifts completely above the rod tip, crosses above the rods, then lands on top of its destination. Never extract a bottom nut or let a moving piece pass through a stack.
+- Persist each legal move immediately; animations are a temporary visual presentation of committed state. Interrupting an animation must not lose a move or repeat a reward.
+- Pause/background/navigation boundaries must settle the final active interval without charging time spent away. Keep focus-control callbacks stable so timer renders do not repeatedly re-register the focus effect.
+
 ## Pointers
 
 - See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details

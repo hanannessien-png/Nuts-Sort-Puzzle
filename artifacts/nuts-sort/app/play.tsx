@@ -1,55 +1,71 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView, Modal, Platform } from 'react-native';
 import { Stack, useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGame } from '@/game/GameProvider';
-import { useThemeColors } from '@/hooks/useThemeColors';
-import { Column } from '@/components/Column';
+import { useThemeColors, useNutPalette } from '@/hooks/useThemeColors';
+import { PuzzleBoard } from '@/components/PuzzleBoard';
 import { GameOverlay } from '@/components/GameOverlay';
 import { Ionicons } from '@expo/vector-icons';
 import { AdBanner } from '@/components/AdBanner';
+import { POWER_PRICES } from '@/game/catalogue';
+
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function PlayScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const game = useGame();
   const theme = useThemeColors();
+  const palette = useNutPalette();
   
-  const { state, tapColumn, usePowerUp, setPlaying, error, notice, clearNotice } = game;
+  const { state, tapColumn, usePowerUp, setPlaying } = game;
   const active = state.active;
 
-  const [isPaused, setIsPaused] = React.useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [powerUpSheet, setPowerUpSheet] = useState<'hint' | 'undo' | 'extraBolt' | null>(null);
+  const lastPowerUp = useRef<'hint' | 'undo' | 'extraBolt'>('hint');
+  const displayedPowerUp = powerUpSheet ?? lastPowerUp.current;
+  const [focused, setFocused] = useState(false);
+  const [animating, setAnimating] = useState(false);
+  const [settledMove, setSettledMove] = useState('');
+  const onBoardBusy = useCallback((value: boolean) => setAnimating(value), []);
+  const onBoardSettled = useCallback((levelId: number, moves: number) => setSettledMove(`${levelId}:${moves}`), []);
 
   useFocusEffect(
     useCallback(() => {
-      if (!isPaused) {
-        setPlaying(true);
-      }
-      return () => setPlaying(false);
+      setFocused(true);
+      setPlaying(!isPaused);
+      return () => {
+        setPlaying(false);
+        setFocused(false);
+      };
     }, [isPaused, setPlaying])
   );
 
   if (!active) {
     return (
-      <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <View style={[styles.container, { backgroundColor: theme.background, justifyContent: 'center', alignItems: 'center' }]}>
         <Stack.Screen options={{ headerShown: false }} />
-        <Text style={{ color: theme.text }}>No active game</Text>
-        <Pressable onPress={() => router.replace('/')} style={[styles.btn, { backgroundColor: theme.primary }]}>
-          <Text style={{ color: theme.surface }}>Go Home</Text>
+        <Text style={{ color: theme.text, fontSize: 24, fontWeight: 'bold' }}>No active game</Text>
+        <Pressable onPress={() => router.replace('/')} style={[styles.btn, { backgroundColor: theme.primary, paddingHorizontal: 32 }]}>
+          <Text style={{ color: theme.surface, fontWeight: 'bold', fontSize: 18 }}>Go Home</Text>
         </Pressable>
       </View>
     );
   }
 
-  const [powerUpSheet, setPowerUpSheet] = React.useState<'hint' | 'undo' | 'extraBolt' | null>(null);
-
   const formatTime = (seconds: number) => {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
+    const total = Math.ceil(Math.max(0, seconds));
+    const m = Math.floor(total / 60);
+    const s = total % 60;
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
   const handlePowerUp = (kind: 'hint' | 'undo' | 'extraBolt') => {
+    if (animating || game.busy || active.status !== 'playing') return;
+    lastPowerUp.current = kind;
+    setPlaying(false);
     setIsPaused(true);
     setPowerUpSheet(kind);
   };
@@ -58,110 +74,109 @@ export default function PlayScreen() {
     if (!powerUpSheet) return;
     const kind = powerUpSheet;
     setPowerUpSheet(null);
-    setIsPaused(false);
-    await usePowerUp(kind, payment);
+    try { await usePowerUp(kind, payment); }
+    finally { setIsPaused(false); }
   };
 
-  const handleRetry = () => {
-    game.retryLoad();
-  }
+  const handleRestart = () => {
+    game.resetLevel();
+    setIsPaused(false);
+  };
+
+  const showGameOverlay = active.status !== 'playing' && !animating
+    && (active.status !== 'won' || settledMove === `${active.levelId}:${active.moves}`);
+  const level = state.levels[active.levelId];
+  const sorted = active.board.filter((column, index) => column.length > 0
+    && column.every(color => color === column[0])
+    && !active.board.some((other, otherIndex) => otherIndex !== index && other.includes(column[0]))).length;
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <Stack.Screen options={{ headerShown: false }} />
+      <LinearGradient colors={[`${theme.surface}00`, `${theme.surface}80`]} style={StyleSheet.absoluteFill} pointerEvents="none" />
       
       {/* Top Bar */}
-      <View style={[styles.topBar, { paddingTop: Math.max(insets.top, 20) }]}>
-        <Pressable onPress={() => router.back()} style={styles.iconBtn}>
+      <View style={[styles.topBar, { paddingTop: insets.top + (Platform.OS === 'web' ? 40 : 12) }]}>
+        <Pressable onPress={() => { setPlaying(false); setFocused(false); router.canGoBack() ? router.back() : router.replace('/'); }} style={styles.iconBtn} testID="btn-back" accessibilityLabel="Back to home">
           <Ionicons name="arrow-back" size={28} color={theme.text} />
         </Pressable>
         
         <View style={styles.stats}>
           <View style={styles.statBox}>
             <Ionicons name="time-outline" size={20} color={theme.text} />
-            <Text style={[styles.statText, { color: theme.text }]}>{formatTime(active.remaining)}</Text>
+            <Text testID="remaining-time" style={[styles.statText, { color: active.remaining < 15 ? theme.danger : theme.text, fontVariant: ['tabular-nums'] }]}>{formatTime(active.remaining)}</Text>
           </View>
           <View style={styles.statBox}>
             <Ionicons name="swap-vertical" size={20} color={theme.text} />
-            <Text style={[styles.statText, { color: theme.text }]}>{active.moves}</Text>
+            <Text testID="move-count" style={[styles.statText, { color: theme.text }]}>{active.moves}</Text>
           </View>
         </View>
 
-        <Pressable onPress={() => setIsPaused(true)} style={styles.iconBtn}>
+        <Pressable disabled={animating || game.busy || active.status !== 'playing'} onPress={() => { setPlaying(false); setIsPaused(true); }} style={styles.iconBtn} testID="btn-pause" accessibilityLabel="Pause game">
           <Ionicons name="pause" size={28} color={theme.text} />
         </Pressable>
       </View>
 
       {/* Board */}
-      <View style={styles.boardContainer}>
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false} 
-          contentContainerStyle={styles.boardScroll}
-        >
-          {active.board.map((nuts, index) => {
-            const isSelected = active.selected === index;
-            const isHintSource = active.hint?.from === index;
-            const isHintTarget = active.hint?.to === index;
-
-            return (
-              <Column 
-                key={`col-${index}`}
-                index={index}
-                nuts={nuts}
-                capacity={active.capacity}
-                isSelected={isSelected}
-                isHintSource={isHintSource}
-                isHintTarget={isHintTarget}
-                onTap={tapColumn}
-              />
-            );
-          })}
-        </ScrollView>
-      </View>
-
-      {/* Error / Notice Toast */}
-      {(error || notice) && (
-        <View style={[styles.toast, { backgroundColor: error ? theme.danger : theme.surface }]}>
-          <Text style={{ color: error ? '#FFF' : theme.text }}>{error || notice}</Text>
-          <Pressable onPress={clearNotice}>
-            <Ionicons name="close" size={20} color={error ? '#FFF' : theme.text} />
-          </Pressable>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingVertical: 20 }} showsVerticalScrollIndicator={false}>
+        <View style={{ paddingHorizontal: 26, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+          <View>
+            <Text style={{ color: theme.primary, fontSize: 10, letterSpacing: 2.5, fontWeight: '700', marginBottom: 5 }}>THE SORTING TABLE</Text>
+            <Text style={{ color: theme.text, fontSize: 32, fontWeight: '700', letterSpacing: -1 }}>Level {String(active.levelId).padStart(2, '0')}</Text>
+          </View>
+          <View style={{ backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1, borderRadius: 16, paddingVertical: 9, paddingHorizontal: 13 }}>
+            <Text style={{ color: theme.primary, fontWeight: '700', fontSize: 12 }}>{level?.difficulty ?? 'Puzzle'}</Text>
+          </View>
         </View>
-      )}
+        <View style={{ marginHorizontal: 12, backgroundColor: theme.surface, borderRadius: 26, borderWidth: 1, borderColor: theme.border, paddingTop: 10, paddingBottom: 14 }}>
+          <PuzzleBoard active={active} enabled={focused && !isPaused} blocked={game.busy || game.adBusy}
+            colorLabels={state.settings.colorLabels} onTap={tapColumn} onBusy={onBoardBusy} onSettled={onBoardSettled} />
+          <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6 }}>
+            {Array.from({ length: level?.colors ?? 3 }, (_, i) => <View key={i} style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: palette[i % palette.length] }} />)}
+            <Text style={{ color: theme.textMuted, fontSize: 12, marginLeft: 4 }}>{sorted} / {level?.colors ?? 3} colors together</Text>
+          </View>
+        </View>
+        <Text style={{ color: theme.textMuted, textAlign: 'center', fontSize: 12, marginTop: 17, paddingHorizontal: 16 }}>
+          {active.selected !== null ? 'Choose a new bolt · Tap the selected nut to cancel' : 'Tap a top nut, then choose its new bolt'}
+        </Text>
+        {active.board.length > 4 && <Text style={{ color: theme.textMuted, textAlign: 'center', fontSize: 11, marginTop: 7 }}>Swipe the table to see all bolts</Text>}
+      </ScrollView>
 
       {/* Power-ups Bar */}
       <View style={[styles.powerups, { paddingBottom: Math.max(insets.bottom, 20) }]}>
         <PowerUpButton 
           icon="bulb" 
           label="Hint" 
-          cost={50} 
+          cost={POWER_PRICES.hint} 
           onPress={() => handlePowerUp('hint')}
           theme={theme}
+          testID="btn-hint"
         />
         <PowerUpButton 
           icon="arrow-undo" 
           label="Undo" 
-          cost={50} 
+          cost={POWER_PRICES.undo} 
           onPress={() => handlePowerUp('undo')}
           theme={theme}
+          testID="btn-undo"
         />
         <PowerUpButton 
           icon="add-circle" 
           label="Bolt" 
-          cost={100} 
+          cost={POWER_PRICES.extraBolt} 
           onPress={() => handlePowerUp('extraBolt')}
           theme={theme}
+          testID="btn-extraBolt"
         />
       </View>
       
-      <GameOverlay />
+      {showGameOverlay && <GameOverlay />}
       
-      <Modal visible={!!powerUpSheet} transparent animationType="slide">
+      <Modal visible={!!powerUpSheet} transparent animationType="slide" onRequestClose={() => { setPowerUpSheet(null); setIsPaused(false); }}>
         <View style={styles.sheetOverlay}>
           <View style={[styles.sheetCard, { backgroundColor: theme.surface }]}>
             <Text style={[styles.sheetTitle, { color: theme.text }]}>
-              {powerUpSheet === 'hint' ? 'Get a Hint' : powerUpSheet === 'undo' ? 'Undo Move' : 'Extra Bolt'}
+              {displayedPowerUp === 'hint' ? 'Get a Hint' : displayedPowerUp === 'undo' ? 'Undo Move' : 'Extra Bolt'}
             </Text>
             
             <View style={{ flexDirection: 'row', gap: 12, marginTop: 24, marginBottom: 24 }}>
@@ -169,25 +184,26 @@ export default function PlayScreen() {
                 style={[styles.sheetBtn, { backgroundColor: theme.primary, flex: 1 }]}
                 onPress={() => executePowerUp('coins')}
               >
-                <Ionicons name="logo-bitcoin" size={20} color="#FFF" />
+                <Ionicons name="server" size={20} color="#FFF" />
                 <Text style={{ color: '#FFF', fontWeight: 'bold', fontSize: 16 }}>
-                  Pay {powerUpSheet === 'extraBolt' ? 100 : 50}
+                  Pay {POWER_PRICES[displayedPowerUp]}
                 </Text>
               </Pressable>
               
-              {game.adsAvailable && (
+              {(
                 <Pressable 
                   style={[styles.sheetBtn, { backgroundColor: theme.success, flex: 1 }]}
                   onPress={() => executePowerUp('ad')}
-                  disabled={game.adBusy}
+                  disabled={game.adBusy || !game.adsAvailable}
                 >
                   <Ionicons name="play" size={20} color="#FFF" />
                   <Text style={{ color: '#FFF', fontWeight: 'bold', fontSize: 16 }}>
-                    {game.adBusy ? 'Loading...' : 'Watch Ad'}
+                    {game.adBusy ? 'Loading...' : game.adsAvailable ? 'Watch Ad' : 'Unavailable'}
                   </Text>
                 </Pressable>
               )}
             </View>
+            {!game.adsAvailable && <Text style={{ color: theme.textMuted, textAlign: 'center', fontSize: 12, lineHeight: 18 }}>{game.adStatus}</Text>}
 
             <Pressable 
               style={{ padding: 16, alignItems: 'center' }}
@@ -203,10 +219,11 @@ export default function PlayScreen() {
       </Modal>
 
       {/* Pause Modal */}
-      <Modal visible={isPaused} transparent animationType="fade">
+      <Modal visible={isPaused && !powerUpSheet && !game.busy} transparent animationType="fade" onRequestClose={() => setIsPaused(false)}>
         <View style={styles.pauseOverlay}>
           <View style={[styles.pauseCard, { backgroundColor: theme.surface }]}>
             <Text style={[styles.pauseTitle, { color: theme.text }]}>Paused</Text>
+            <Text style={{ color: theme.textMuted, textAlign: 'center', fontSize: 13, lineHeight: 19 }}>Take your time. The clock is paused.</Text>
             
             <Pressable 
               style={[styles.pauseBtn, { backgroundColor: theme.primary }]}
@@ -217,18 +234,18 @@ export default function PlayScreen() {
             
             <Pressable 
               style={[styles.pauseBtn, { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1 }]}
-              onPress={() => {
-                setIsPaused(false);
-                game.resetLevel();
-              }}
+              onPress={handleRestart}
+              testID="btn-restart"
             >
               <Text style={{ color: theme.text, fontWeight: 'bold', fontSize: 16 }}>Restart Level</Text>
             </Pressable>
+            <Text style={{ color: theme.textMuted, textAlign: 'center', fontSize: 11 }}>Free reset · Your remaining time stays the same</Text>
 
             <Pressable 
               style={[styles.pauseBtn, { backgroundColor: theme.surface, borderColor: theme.danger, borderWidth: 1, marginTop: 12 }]}
               onPress={() => {
-                setIsPaused(false);
+                setPlaying(false);
+                setFocused(false);
                 router.replace('/');
               }}
             >
@@ -244,13 +261,13 @@ export default function PlayScreen() {
   );
 }
 
-function PowerUpButton({ icon, label, cost, onPress, theme }: any) {
+function PowerUpButton({ icon, label, cost, onPress, theme, testID }: any) {
   return (
-    <Pressable onPress={onPress} style={[styles.powerupBtn, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+    <Pressable onPress={onPress} style={[styles.powerupBtn, { backgroundColor: theme.surface, borderColor: theme.border }]} testID={testID}>
       <Ionicons name={icon} size={28} color={theme.primary} />
       <Text style={[styles.powerupLabel, { color: theme.text }]}>{label}</Text>
       <View style={[styles.costBadge, { backgroundColor: theme.primaryMuted }]}>
-        <Text style={[styles.costText, { color: theme.primary }]}>{cost}</Text>
+        <Text style={[styles.costText, { color: theme.text }]}>{cost}</Text>
       </View>
     </Pressable>
   );
@@ -309,6 +326,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     minWidth: 80,
     gap: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   powerupLabel: {
     fontSize: 12,

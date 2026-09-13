@@ -6,6 +6,7 @@ import { useGame } from '@/game/GameProvider';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { Ionicons } from '@expo/vector-icons';
 import { THEMES } from '@/constants/theme';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -20,16 +21,24 @@ export default function SettingsScreen() {
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <Stack.Screen options={{ headerShown: false }} />
       
-      <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) }]}>
+      <LinearGradient 
+        colors={[`${theme.surface}00`, `${theme.surface}60`, theme.background]} 
+        style={StyleSheet.absoluteFill} 
+        pointerEvents="none"
+      />
+      
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, 16) }]}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={28} color={theme.text} />
+          <Ionicons name="close" size={32} color={theme.text} />
         </Pressable>
-        <Text style={[styles.title, { color: theme.text }]}>Settings</Text>
-        <View style={{ width: 44 }} />
+        <Text style={[styles.title, { color: theme.text }]}>SETTINGS</Text>
+        <View style={{ width: 48 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
-        <View style={[styles.section, { backgroundColor: theme.surface }]}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        
+        <Text style={[styles.sectionTitle, { color: theme.textMuted }]}>Preferences</Text>
+        <View style={[styles.section, { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1 }]}>
           <SettingToggle 
             icon="volume-high" 
             label="Sound Effects" 
@@ -56,8 +65,8 @@ export default function SettingsScreen() {
         </View>
 
         <Text style={[styles.sectionTitle, { color: theme.textMuted }]}>App Theme</Text>
-        <View style={[styles.section, { backgroundColor: theme.surface, padding: 16 }]}>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+        <View style={[styles.section, { backgroundColor: theme.surface, padding: 20, borderColor: theme.border, borderWidth: 1 }]}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 16 }}>
             {game.catalog.filter(item => item.category === 'themes' && state.owned.includes(item.id)).map((item) => {
               const isActive = state.equipped.themes === item.id;
               const t = THEMES[item.appearance] || THEMES.default;
@@ -71,15 +80,16 @@ export default function SettingsScreen() {
                   ]}
                 >
                   <View style={[styles.themeSurface, { backgroundColor: t.surface }]} />
-                  <View style={{ flexDirection: 'row', gap: 4, marginTop: 8 }}>
+                  <View style={{ flexDirection: 'row', gap: 6, marginTop: 12 }}>
                     <View style={[styles.themeDot, { backgroundColor: t.primary }]} />
                     <View style={[styles.themeDot, { backgroundColor: t.danger }]} />
                   </View>
                   {isActive && (
                     <View style={[styles.activeCheck, { backgroundColor: t.primary }]}>
-                      <Ionicons name="checkmark" size={12} color="#FFF" />
+                      <Ionicons name="checkmark" size={16} color="#FFF" />
                     </View>
                   )}
+                  <Text style={[styles.themeName, { color: t.text }]}>{item.name}</Text>
                 </Pressable>
               );
             })}
@@ -114,68 +124,91 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingBottom: 24,
+    zIndex: 10,
   },
   backBtn: { padding: 8 },
-  title: { fontSize: 20, fontWeight: '700' },
-  content: { padding: 16 },
+  title: { fontSize: 22, fontWeight: '900', letterSpacing: 2 },
+  content: { padding: 24, paddingBottom: 60 },
   section: {
-    borderRadius: 20,
+    borderRadius: 24,
     overflow: 'hidden',
-    marginBottom: 24,
+    marginBottom: 32,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
   },
   settingRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
+    padding: 20,
   },
   settingLabel: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 16,
   },
   settingText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '800',
   },
-  divider: { height: 1, marginLeft: 52 },
+  divider: { height: 1, marginLeft: 60 },
   sectionTitle: {
     fontSize: 14,
-    fontWeight: '700',
-    marginBottom: 8,
-    marginLeft: 16,
+    fontWeight: '800',
+    marginBottom: 12,
+    marginLeft: 8,
     textTransform: 'uppercase',
-    letterSpacing: 1,
+    letterSpacing: 2,
   },
   themePreview: {
-    width: 80,
-    height: 100,
-    borderRadius: 12,
+    width: 90,
+    height: 125,
+    borderRadius: 20,
     borderWidth: 2,
-    padding: 8,
+    padding: 12,
     position: 'relative',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 2 },
   },
   themeSurface: {
     width: '100%',
-    height: 40,
-    borderRadius: 6,
+    height: 44,
+    borderRadius: 10,
   },
   themeDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
   },
   activeCheck: {
     position: 'absolute',
-    top: -6,
-    right: -6,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    top: -10,
+    right: -10,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
     borderColor: '#FFF',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  themeName: {
+    fontSize: 11,
+    fontWeight: '800',
+    marginTop: 12,
+    textAlign: 'center',
+    letterSpacing: 0.5,
   }
 });
