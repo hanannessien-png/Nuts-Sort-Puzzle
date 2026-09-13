@@ -1,0 +1,1 @@
+- [Expo compatibility](expo-compatibility.md) — newer React Native style APIs and native ad imports that require web module isolation.
