@@ -59,6 +59,7 @@ Questions to this user about this game must be in Arabic. Do not re-ask settled 
 
 - The user explicitly rejected a sparse, generic-looking opening screen. Keep the game tactile and detailed, with a cohesive premium light default, custom title artwork, dimensional pieces and polished supporting screens.
 - A movable nut must be the visually topmost nut. It lifts completely above the rod tip, crosses above the rods, then lands on top of its destination. Never extract a bottom nut or let a moving piece pass through a stack.
+- Additional bolts must wrap into rows below, never extend offscreen to require horizontal swiping. Fit normal boards to the portrait viewport; only vertical scrolling is allowed for unusually large boards.
 - Persist each legal move immediately; animations are a temporary visual presentation of committed state. Interrupting an animation must not lose a move or repeat a reward.
 - Pause/background/navigation boundaries must settle the final active interval without charging time spent away. Keep focus-control callbacks stable so timer renders do not repeatedly re-register the focus effect.
 

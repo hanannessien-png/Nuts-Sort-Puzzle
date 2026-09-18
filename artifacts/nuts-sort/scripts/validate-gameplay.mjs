@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { ActivePlayClock, elapseAttempt } from '../game/timing.ts';
 import { applyMove, isSolved } from '../game/engine.ts';
-import { boardGeometry } from '../components/boardGeometry.ts';
+import { boardGeometry, transferPath } from '../components/boardGeometry.ts';
 
 const board = [[0, 1, 2], [1], [2, 0]];
 const moved = applyMove(board, 4, { from: 0, to: 1 });
@@ -33,15 +33,41 @@ assert.equal(timedOut.status, 'timeout');
 assert.equal(elapseAttempt(timedOut, 30), timedOut);
 assert.equal(elapseAttempt(attempt, -1), attempt);
 assert.equal(elapseAttempt(null, 1), null);
-for (const viewport of [360, 390, 430]) {
+for (const viewport of [294, 334, 364, 404, 700]) {
   for (const capacity of [4, 5, 6]) {
-    const g = boardGeometry(viewport, 6, capacity);
+   for (const columns of [3, 4, 5, 6, 7, 9, 12, 16]) {
+    const g = boardGeometry(viewport, columns, capacity, 370);
+    assert.equal(g.width, viewport, 'Board never extends sideways beyond its viewport');
+    if (columns > 4) assert.ok(g.rows > 1, 'Additional columns are placed on rows BELOW, not off to the right');
     for (let row = 1; row < capacity; row++) {
       assert.ok(g.y(row) < g.y(row - 1), 'Later array elements are visually ABOVE earlier elements');
     }
     assert.ok(g.liftY >= 0, 'Lifted nuts stay inside the visible board');
     assert.ok(g.liftY + g.nutHeight < g.tipY, 'Travel clears the top of the entire bolt');
     assert.ok(g.y(0) + g.nutHeight <= g.baseY, 'Bottom nut rests above the base');
+    for (let from = 0; from < columns; from++) {
+      assert.ok(g.x(from) >= 0 && g.x(from) + g.nutSize <= viewport, 'All columns stay on screen horizontally');
+      assert.ok(g.rowTop(from) + g.rowHeight <= g.height + 0.001);
+      for (let to = 0; to < columns; to++) {
+        if (from === to) continue;
+        const path = transferPath(g, from, to, capacity - 1, true);
+        assert.equal(path.at(-1).x, g.x(to));
+        assert.equal(path.at(-1).y, g.y(capacity - 1, to));
+        for (const point of path) {
+          assert.ok(point.x >= 0 && point.x + g.nutSize <= viewport, 'Flight remains within the viewport');
+          assert.ok(point.y >= 0 && point.y + g.nutHeight <= g.height);
+        }
+        if (g.rowOf(from) !== g.rowOf(to)) {
+          const lane = path[1].x;
+          assert.equal(path[2].x, lane, 'Vertical travel stays in a clear side lane');
+          for (let column = 0; column < columns; column++) {
+            assert.ok(lane + g.nutSize <= g.x(column) - 14 + 0.001 || lane >= g.x(column) + g.nutSize + 14 - 0.001,
+              'Row-to-row travel avoids every nut and bolt base, not just the target');
+          }
+        }
+      }
+    }
+   }
   }
 }
-console.log('PASS: top-only moves and visual order, above-tip travel geometry, invalid targets, win rules, paused timing, timeout bounds.');
+console.log('PASS: vertical board rows, bounded flight paths, top-only moves, above-tip geometry, invalid targets, win rules, paused timing, timeout bounds.');

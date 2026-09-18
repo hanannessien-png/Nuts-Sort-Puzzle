@@ -1,541 +1,260 @@
 import Constants from 'expo-constants';
-import {
-  NativeModules,
-  Platform,
-  TurboModuleRegistry,
-} from 'react-native';
-import {
-  ADMOB_TEST_AD_UNIT_IDS,
-  type AdFormat,
-  type AdPlatform,
-  getTestAdUnitId,
-} from '@/constants/ads';
+import { AppState, NativeModules, Platform, TurboModuleRegistry } from 'react-native';
+import { getAdUnitId, type AdFormat } from '@/constants/ads';
 
-/**
- * This file intentionally does not import react-native-google-mobile-ads at
- * module evaluation time.  The package is native-only; importing it while
- * running in Expo Go or on web can crash before the app gets a chance to
- * render its unavailable state.
- */
-
+// Type-only: evaluating this native package in Expo Go or web crashes.
+type AdsSdk = typeof import('react-native-google-mobile-ads');
+type ConsentInfo = import('react-native-google-mobile-ads').AdsConsentInfo;
 type Unsubscribe = () => void;
-type AdListener = (...args: unknown[]) => void;
-
 type AdInstance = {
-  addAdEventListener?: (
-    event: unknown,
-    listener: AdListener,
-  ) => Unsubscribe;
-  load: () => void | Promise<void>;
-  show: () => void | Promise<void>;
+  addAdEventListener: (event: never, callback: (...args: unknown[]) => void) => Unsubscribe;
+  load: () => void;
+  show: () => Promise<void>;
 };
+type AdResult = { earned: boolean; message?: string };
 
-type AdConstructor = {
-  createForAdUnitId: (unitId: string) => AdInstance;
-};
-
-type AdsSdkModule = {
-  AdEventType?: {
-    CLOSED?: unknown;
-    ERROR?: unknown;
-    LOADED?: unknown;
-  };
-  AppOpenAd?: AdConstructor;
-  BannerAd?: unknown;
-  BannerAdSize?: {
-    ANCHORED_ADAPTIVE_BANNER?: unknown;
-  };
-  AdsConsent?: {
-    requestInfoUpdate: () => Promise<{
-      canRequestAds?: boolean;
-      isConsentFormAvailable?: boolean;
-      status?: unknown;
-    }>;
-    loadAndShowConsentFormIfRequired: () => Promise<unknown>;
-  };
-  InterstitialAd?: AdConstructor;
-  RewardedAd?: AdConstructor;
-  RewardedAdEventType?: {
-    EARNED_REWARD?: unknown;
-    LOADED?: unknown;
-  };
-  mobileAds?: () => {
-    initialize: () => Promise<unknown>;
-  };
-};
-
-type NativeModuleCheck = {
-  available: boolean;
-  message?: string;
-};
-
-type ConsentState = 'unknown' | 'pending' | 'ready' | 'unavailable';
-
-const INITIALIZATION_MESSAGE = 'Ads have not been initialized yet.';
-const STORE_CLIENT_MESSAGE =
-  'Ads are unavailable in Expo Go preview. Use a native development build.';
-const WEB_MESSAGE = 'Ads unavailable in preview';
-const NATIVE_MODULE_MESSAGE =
-  'AdMob is unavailable in this native build. Install the AdMob config plugin and rebuild.';
-
-let sdkModule: AdsSdkModule | null = null;
-let sdkLoadMessage: string | null = null;
-let consentState: ConsentState = 'unknown';
+let sdk: AdsSdk | undefined;
 let initialized = false;
-let initializationPromise: Promise<void> | undefined;
-let adShowing = false;
+let initialization: Promise<void> | undefined;
+let consentInfo: ConsentInfo | undefined;
+let showing = false;
+// A timed-out native presentation cannot be forcibly dismissed from JS. Never
+// stack another ad on top of it or resume gameplay until native close evidence.
+let presentationUncertain = false;
+let status = 'Ads have not been initialized yet.';
+const listeners = new Set<() => void>();
+const notify = () => { for (const listener of listeners) listener(); };
+export function subscribeAdState(listener: () => void): Unsubscribe {
+  listeners.add(listener);
+  return () => { listeners.delete(listener); };
+}
 
-function nativeEnvironmentCheck(): NativeModuleCheck {
-  if (Platform.OS === 'web') {
-    return { available: false, message: WEB_MESSAGE };
-  }
-
-  // `storeClient` is Expo Go.  Do this before looking up the native module:
-  // Expo Go must never attempt to evaluate the native AdMob package.
+function nativeMessage(): string | null {
+  if (Platform.OS === 'web') return 'Ads unavailable in browser preview.';
   if (String(Constants.executionEnvironment) === 'storeClient') {
-    return { available: false, message: STORE_CLIENT_MESSAGE };
+    return 'Ads are unavailable in Expo Go preview. Use a native development build.';
   }
-
   try {
-    const modules = NativeModules as Record<string, unknown>;
-    const nativeModule = modules.RNGoogleMobileAdsModule;
-    const turboRegistry = TurboModuleRegistry as unknown as {
-      get?: (name: string) => unknown;
-    };
-    const turboModule = turboRegistry.get?.('RNGoogleMobileAdsModule');
-
-    if (nativeModule || turboModule) {
-      return { available: true };
-    }
-  } catch {
-    // A missing TurboModule is a normal state for Expo Go and unconfigured
-    // native builds.  Keep the failure as an unavailable status instead of
-    // allowing a native lookup to crash the app.
-  }
-
-  return { available: false, message: NATIVE_MODULE_MESSAGE };
+    if (NativeModules.RNGoogleMobileAdsModule || TurboModuleRegistry.get('RNGoogleMobileAdsModule')) return null;
+  } catch { /* Missing native modules are an explicit unavailable state. */ }
+  return 'AdMob is unavailable in this native build. Rebuild with the AdMob config plugin.';
 }
 
-function loadSdkModule(): AdsSdkModule | null {
-  if (sdkModule) {
-    return sdkModule;
-  }
-
-  const nativeCheck = nativeEnvironmentCheck();
-  if (!nativeCheck.available) {
-    return null;
-  }
-
-  try {
-    // Metro's require is intentionally deferred until after all native guards.
-    // @ts-ignore The package is installed by the native app build.
-    const loaded = require('react-native-google-mobile-ads') as AdsSdkModule;
-    if (!loaded || typeof loaded !== 'object') {
-      throw new Error('The AdMob JavaScript module did not load.');
-    }
-    sdkModule = loaded;
-    sdkLoadMessage = null;
-    return sdkModule;
-  } catch {
-    sdkLoadMessage = 'The AdMob SDK package is unavailable in this build.';
-    return null;
-  }
+function loadSdk(): AdsSdk {
+  const message = nativeMessage();
+  if (message) throw new Error(message);
+  // Deliberately deferred behind native guards, never a top-level import.
+  sdk ??= require('react-native-google-mobile-ads') as AdsSdk;
+  return sdk;
 }
 
-function platformForAdMob(): AdPlatform {
-  return Platform.OS === 'ios' ? 'ios' : 'android';
+function bounded<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(message)), ms);
+    promise.then(value => { clearTimeout(timer); resolve(value); },
+      error => { clearTimeout(timer); reject(error); });
+  });
 }
 
-function unitId(format: AdFormat): string {
-  return getTestAdUnitId(format, platformForAdMob());
-}
-
-function unavailableMessage(): string {
-  const nativeCheck = nativeEnvironmentCheck();
-  if (!nativeCheck.available) {
-    return nativeCheck.message ?? NATIVE_MODULE_MESSAGE;
-  }
-  if (sdkLoadMessage) {
-    return sdkLoadMessage;
-  }
-  if (consentState === 'unavailable') {
-    return 'Ads are unavailable because consent could not be initialized.';
-  }
-  if (consentState === 'pending') {
-    return 'Ads are preparing consent.';
-  }
-  if (!initialized || consentState !== 'ready') {
-    return INITIALIZATION_MESSAGE;
-  }
-  return 'Ads are unavailable right now.';
-}
-
-function releaseAdLock(): void {
-  adShowing = false;
-}
-
-function acquireAdLock(): boolean {
-  if (adShowing) {
-    return false;
-  }
-  adShowing = true;
+function lock(): boolean {
+  if (showing || presentationUncertain || AppState.currentState === 'background'
+    || AppState.currentState === 'inactive') return false;
+  showing = true;
+  notify();
   return true;
 }
+function unlock() { showing = false; notify(); }
+export function isAdShowing(): boolean { return showing; }
 
-function addListener(
-  ad: AdInstance,
-  event: unknown,
-  listener: AdListener,
-): Unsubscribe {
-  if (event === undefined || typeof ad.addAdEventListener !== 'function') {
-    throw new Error('The AdMob SDK did not provide the requested ad event.');
-  }
-  const remove = ad.addAdEventListener(event, listener);
-  return typeof remove === 'function' ? remove : () => undefined;
-}
-
-/**
- * Initialize UMP consent first, then initialize the Google Mobile Ads SDK.
- * `canRequestAds` is checked after the consent form as well; the adapter
- * never silently bypasses UMP when the SDK does not expose consent support.
- */
-async function initializeConsent(sdk: AdsSdkModule): Promise<void> {
-  const consent = sdk.AdsConsent;
-  if (
-    !consent ||
-    typeof consent.requestInfoUpdate !== 'function' ||
-    typeof consent.loadAndShowConsentFormIfRequired !== 'function'
-  ) {
-    throw new Error(
-      'AdMob UMP consent is unavailable in this native build; ads remain disabled.',
-    );
-  }
-
-  const initialInfo = await consent.requestInfoUpdate();
-  if (initialInfo.isConsentFormAvailable) {
-    await consent.loadAndShowConsentFormIfRequired();
-  }
-
-  // A second request reads the post-form state.  Requiring the explicit
-  // boolean is intentional: an SDK that cannot tell us whether ads may be
-  // requested is not treated as consented.
-  const finalInfo = await consent.requestInfoUpdate();
-  if (finalInfo.canRequestAds !== true) {
-    throw new Error(
-      'AdMob consent was not granted or is still pending; ads remain disabled.',
-    );
-  }
-}
-
-/**
- * Synchronously reports whether a native, consented adapter is ready.
- * The main game can use this to gate only ad-dependent actions.
- */
 export function adAvailability(): { available: boolean; message: string } {
-  const nativeCheck = nativeEnvironmentCheck();
-  if (!nativeCheck.available) {
-    return {
-      available: false,
-      message: nativeCheck.message ?? NATIVE_MODULE_MESSAGE,
-    };
-  }
-
-  if (!loadSdkModule()) {
-    return {
-      available: false,
-      message: sdkLoadMessage ?? 'The AdMob SDK package is unavailable in this build.',
-    };
-  }
-
-  if (!initialized || consentState !== 'ready') {
-    return { available: false, message: unavailableMessage() };
-  }
-
-  return { available: true, message: 'Ads are available.' };
+  const message = nativeMessage();
+  if (message) return { available: false, message };
+  if (presentationUncertain) return {
+    available: false,
+    message: showing
+      ? 'Waiting for the ad or privacy form to close. If it is stuck, restart the app.'
+      : 'An ad did not close normally. Restart the app to retry ads; you can keep playing.',
+  };
+  return { available: initialized && consentInfo?.canRequestAds === true, message: status };
 }
 
-/**
- * Main calls this during hydration.  It rejects when a native module or UMP
- * consent is unavailable so callers can surface an explicit diagnostic.
- */
-export function initializeAds(): Promise<void> {
-  if (initializationPromise) {
-    return initializationPromise;
+export function privacyOptionsAvailability(): { required: boolean; available: boolean; message: string } {
+  const required = consentInfo?.privacyOptionsRequirementStatus === 'REQUIRED';
+  const message = nativeMessage();
+  return {
+    required,
+    available: !message && required && !showing && !presentationUncertain,
+    message: message ?? (required ? 'Manage your ad privacy choices.' : 'No ad privacy form is required for your region right now.'),
+  };
+}
+
+async function nativeConsentForm(work: () => Promise<ConsentInfo>): Promise<ConsentInfo> {
+  if (!lock()) throw new Error('Another ad or privacy form is already open.');
+  let completed = false;
+  let pending: Promise<ConsentInfo>;
+  try { pending = work(); }
+  catch (error) { unlock(); throw error; }
+  // The JS deadline is not proof that the native form has disappeared.
+  // Its actual completion/rejection is the evidence that permits unlocking.
+  const completion = pending.finally(() => { completed = true; unlock(); });
+  try {
+    return await bounded(completion, 120_000,
+      'The ad privacy form timed out. Restart the app to retry ads.');
+  } catch (error) {
+    if (!completed) { presentationUncertain = true; notify(); }
+    throw error;
   }
+}
 
-  initializationPromise = (async () => {
-    const nativeCheck = nativeEnvironmentCheck();
-    if (!nativeCheck.available) {
-      throw new Error(nativeCheck.message ?? NATIVE_MODULE_MESSAGE);
-    }
-
-    const sdk = loadSdkModule();
-    if (!sdk) {
-      throw new Error(sdkLoadMessage ?? 'The AdMob SDK package is unavailable in this build.');
-    }
-    if (typeof sdk.mobileAds !== 'function') {
-      throw new Error('The AdMob SDK does not expose mobileAds initialization.');
-    }
-
-    initialized = false;
-    consentState = 'pending';
+export function initializeAds(): Promise<void> {
+  if (initialization) return initialization;
+  initialization = (async () => {
     try {
-      await initializeConsent(sdk);
-      const ads = sdk.mobileAds();
-      if (!ads || typeof ads.initialize !== 'function') {
-        throw new Error('The AdMob SDK does not expose initialize().');
+      const module = loadSdk();
+      status = 'Preparing ad privacy choices.';
+      notify();
+      // One network update per session. Read cached post-form state rather than
+      // making a second network request, which could fail after valid consent.
+      consentInfo = await bounded(module.AdsConsent.requestInfoUpdate(), 10_000, 'Ad privacy information could not be loaded. Try again when online.');
+      notify();
+      if (consentInfo.isConsentFormAvailable) {
+        consentInfo = await nativeConsentForm(() => module.AdsConsent.loadAndShowConsentFormIfRequired());
       }
-      await ads.initialize();
-      consentState = 'ready';
+      consentInfo = await bounded(module.AdsConsent.getConsentInfo(), 5_000, 'Ad privacy information is unavailable.');
+      if (!consentInfo.canRequestAds) throw new Error('Ads are unavailable until the required privacy choices are completed.');
+      // The installed SDK exports its factory as DEFAULT, not mobileAds.
+      await bounded(module.default().initialize(), 10_000, 'Ad initialization timed out. You can keep playing.');
       initialized = true;
+      status = 'Ads are available.';
+      notify();
     } catch (error) {
-      consentState = 'unavailable';
       initialized = false;
+      status = error instanceof Error ? error.message : 'Ads are unavailable right now.';
+      notify();
       throw error;
     }
   })();
-
-  initializationPromise.catch(() => {
-    initializationPromise = undefined;
-  });
-
-  return initializationPromise;
+  initialization.catch(() => { initialization = undefined; });
+  return initialization;
 }
 
-export function isAdShowing(): boolean {
-  return adShowing;
+export async function showAdPrivacyOptions(): Promise<{ ok: boolean; message: string }> {
+  const availability = privacyOptionsAvailability();
+  if (!availability.available) return { ok: false, message: availability.message };
+  try {
+    const module = loadSdk();
+    // Unmount banners while choices change, even if the form then fails.
+    initialized = false;
+    notify();
+    consentInfo = await nativeConsentForm(() => module.AdsConsent.showPrivacyOptionsForm());
+    consentInfo = await bounded(module.AdsConsent.getConsentInfo(), 5_000, 'Could not read your updated privacy choices.');
+    if (consentInfo.canRequestAds) {
+      await bounded(module.default().initialize(), 10_000, 'Ad initialization timed out.');
+      initialized = true;
+    }
+    status = initialized ? 'Ads are available.' : 'Ads are disabled by your current privacy choices.';
+    initialization = undefined;
+    notify();
+    return { ok: true, message: 'Your ad privacy choices have been updated.' };
+  } catch (error) {
+    status = error instanceof Error ? error.message : 'The ad privacy form could not be opened.';
+    initialization = undefined;
+    notify();
+    return { ok: false, message: status };
+  }
+}
+
+function unitId(format: AdFormat): string {
+  return getAdUnitId(format, Platform.OS === 'ios' ? 'ios' : 'android');
 }
 
 /**
- * Show a rewarded ad and resolve true only after both native reward and close
- * events.  A close without EARNED_REWARD, an error, no-fill, or a timeout is
- * always a non-earned result.
+ * A load deadline is separate from the on-screen lifetime. A long video must
+ * not lose its reward listener or release the presentation lock after 30/60s.
+ * The watchdog bounds the caller's wait, but cannot dismiss native UI. After
+ * it fires only close/error listeners remain, keeping input/time locked until
+ * native closure evidence arrives. Background/foreground alone is not proof.
  */
-export function showRewardedAd(): Promise<{ earned: boolean; message?: string }> {
+function fullScreen(format: Exclude<AdFormat, 'banner'>, canShow: () => boolean): Promise<AdResult> {
   const availability = adAvailability();
-  if (!availability.available) {
-    return Promise.resolve({ earned: false, message: availability.message });
-  }
-  if (!acquireAdLock()) {
-    return Promise.resolve({
-      earned: false,
-      message: 'Another ad is already showing.',
-    });
-  }
-
-  const sdk = sdkModule;
-  const constructor = sdk?.RewardedAd;
-  const events = sdk?.AdEventType;
-  const rewardedEvents = sdk?.RewardedAdEventType;
-  if (!constructor || !events || !rewardedEvents) {
-    releaseAdLock();
-    return Promise.resolve({
-      earned: false,
-      message: 'Rewarded ads are unavailable in this build.',
-    });
-  }
-
-  return new Promise((resolve) => {
+  if (!availability.available) return Promise.resolve({ earned: false, message: availability.message });
+  if (!canShow() || !lock()) return Promise.resolve({ earned: false, message: 'Another ad is open or this placement is no longer visible.' });
+  return new Promise(resolve => {
     let settled = false;
+    let finished = false;
     let earned = false;
-    let timeout: ReturnType<typeof setTimeout> | undefined;
-    const unsubscribers: Unsubscribe[] = [];
-
-    const finish = (result: {
-      earned: boolean;
-      message?: string;
-    }): void => {
-      if (settled) {
-        return;
+    let presented = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const subscriptions: Unsubscribe[] = [];
+    const closureSubscriptions: Unsubscribe[] = [];
+    const cleanup = (removers: Unsubscribe[]) => {
+      for (const unsubscribe of removers.splice(0)) {
+        try { unsubscribe(); } catch { /* Complete remaining cleanup. */ }
       }
-      settled = true;
-      if (timeout) {
-        clearTimeout(timeout);
-      }
-      for (const unsubscribe of unsubscribers.splice(0)) {
-        try {
-          unsubscribe();
-        } catch {
-          // Listener cleanup must not prevent the single completion.
-        }
-      }
-      releaseAdLock();
-      resolve(result);
     };
-
-    try {
-      const ad = constructor.createForAdUnitId(unitId('rewarded'));
-      unsubscribers.push(
-        addListener(ad, rewardedEvents.LOADED, () => {
-          if (settled) {
-            return;
-          }
-          try {
-            void Promise.resolve(ad.show()).catch(() => {
-              finish({
-                earned: false,
-                message: 'The rewarded ad could not be shown.',
-              });
-            });
-          } catch {
-            finish({
-              earned: false,
-              message: 'The rewarded ad could not be shown.',
-            });
-          }
-        }),
-      );
-      unsubscribers.push(
-        addListener(ad, rewardedEvents.EARNED_REWARD, () => {
-          if (!settled) {
-            earned = true;
-          }
-        }),
-      );
-      unsubscribers.push(
-        addListener(ad, events.CLOSED, () => {
-          finish(
-            earned
-              ? { earned: true }
-              : {
-                  earned: false,
-                  message: 'The rewarded ad was closed before completion.',
-                },
-          );
-        }),
-      );
-      unsubscribers.push(
-        addListener(ad, events.ERROR, () => {
-          finish({
-            earned: false,
-            message: 'The rewarded ad is unavailable right now.',
-          });
-        }),
-      );
-
-      timeout = setTimeout(() => {
-        finish({
-          earned: false,
-          message: 'The rewarded ad timed out before completion.',
-        });
-      }, 60_000);
-
-      try {
-        void Promise.resolve(ad.load()).catch(() => {
-          finish({
-            earned: false,
-            message: 'The rewarded ad could not be loaded.',
-          });
-        });
-      } catch {
-        finish({
-          earned: false,
-          message: 'The rewarded ad could not be loaded.',
-        });
+    const finish = (message?: string) => {
+      if (finished) return;
+      finished = true;
+      clearTimeout(timer);
+      cleanup(subscriptions);
+      cleanup(closureSubscriptions);
+      unlock();
+      if (!settled) {
+        settled = true;
+        resolve({ earned: earned && !message, message });
       }
-    } catch {
-      finish({
-        earned: false,
-        message: 'Rewarded ads are unavailable right now.',
+    };
+    try {
+      const module = loadSdk();
+      const constructor = format === 'rewarded' ? module.RewardedAd
+        : format === 'interstitial' ? module.InterstitialAd : module.AppOpenAd;
+      const ad = constructor.createForAdRequest(unitId(format)) as unknown as AdInstance;
+      const on = (event: string, callback: () => void, closureEvidence = false) => {
+        (closureEvidence ? closureSubscriptions : subscriptions)
+          .push(ad.addAdEventListener(event as never, callback));
+      };
+      on(format === 'rewarded' ? module.RewardedAdEventType.LOADED : module.AdEventType.LOADED, () => {
+        if (settled || presented) return;
+        if (!canShow() || AppState.currentState === 'background' || AppState.currentState === 'inactive') {
+          finish('The ad was skipped because the app is no longer at an ad boundary.');
+          return;
+        }
+        presented = true;
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+          presentationUncertain = true;
+          settled = true;
+          cleanup(subscriptions);
+          notify();
+          // Keep the presentation lock and the two closure-evidence listeners.
+          // A late CLOSED/ERROR cleans them and unlocks, without a second result.
+          resolve({ earned: false, message: 'The ad did not close normally. Close it or restart the app to continue.' });
+        }, 180_000);
+        try { void ad.show().catch(() => finish('The ad could not be shown.')); }
+        catch { finish('The ad could not be shown.'); }
       });
-    }
+      if (format === 'rewarded') {
+        on(module.RewardedAdEventType.EARNED_REWARD, () => { if (presented && !settled) earned = true; });
+      }
+      on(module.AdEventType.CLOSED, () => finish(
+        format === 'rewarded' && !earned ? 'The ad was closed before the reward was earned.' : undefined,
+      ), true);
+      on(module.AdEventType.ERROR, () => finish('No ad is available right now. Please try again later.'), true);
+      timer = setTimeout(() => finish('The ad could not load in time. Please try again later.'), format === 'appOpen' ? 4_000 : 8_000);
+      ad.load();
+    } catch { finish('Ads are unavailable right now. Please try again later.'); }
   });
 }
 
-/**
- * Interstitials and app-open ads are passive placements.  If a request fails,
- * they resolve without presenting anything so a safe game boundary never
- * becomes a gameplay error.  Availability remains observable via
- * adAvailability().
- */
-function showPassiveAd(format: 'interstitial' | 'appOpen'): Promise<void> {
-  const availability = adAvailability();
-  if (!availability.available || !acquireAdLock()) {
-    return Promise.resolve();
-  }
-
-  const sdk = sdkModule;
-  const constructor =
-    format === 'interstitial' ? sdk?.InterstitialAd : sdk?.AppOpenAd;
-  const events = sdk?.AdEventType;
-  if (!constructor || !events) {
-    releaseAdLock();
-    return Promise.resolve();
-  }
-
-  return new Promise((resolve) => {
-    let settled = false;
-    let timeout: ReturnType<typeof setTimeout> | undefined;
-    const unsubscribers: Unsubscribe[] = [];
-
-    const finish = (): void => {
-      if (settled) {
-        return;
-      }
-      settled = true;
-      if (timeout) {
-        clearTimeout(timeout);
-      }
-      for (const unsubscribe of unsubscribers.splice(0)) {
-        try {
-          unsubscribe();
-        } catch {
-          // Continue to the one completion even if a listener was removed.
-        }
-      }
-      releaseAdLock();
-      resolve();
-    };
-
-    try {
-      const ad = constructor.createForAdUnitId(unitId(format));
-      unsubscribers.push(
-        addListener(ad, events.LOADED, () => {
-          if (settled) {
-            return;
-          }
-          try {
-            void Promise.resolve(ad.show()).catch(finish);
-          } catch {
-            finish();
-          }
-        }),
-      );
-      unsubscribers.push(addListener(ad, events.CLOSED, finish));
-      unsubscribers.push(addListener(ad, events.ERROR, finish));
-
-      timeout = setTimeout(finish, 30_000);
-      try {
-        void Promise.resolve(ad.load()).catch(finish);
-      } catch {
-        finish();
-      }
-    } catch {
-      finish();
-    }
-  });
+export function showRewardedAd(): Promise<AdResult> {
+  return fullScreen('rewarded', () => true);
 }
-
-export function showInterstitialAd(): Promise<void> {
-  return showPassiveAd('interstitial');
+export async function showInterstitialAd(canShow: () => boolean = () => true): Promise<void> {
+  await fullScreen('interstitial', canShow);
 }
-
-export function showAppOpenAd(): Promise<void> {
-  return showPassiveAd('appOpen');
+export async function showAppOpenAd(canShow: () => boolean = () => true): Promise<void> {
+  await fullScreen('appOpen', canShow);
 }
-
-/**
- * Internal bridge used by AdBanner after adAvailability() is true.  Keeping
- * the package lookup here preserves the same Expo Go/native-module guard.
- */
-export function getBannerAdComponent(): unknown {
-  return loadSdkModule()?.BannerAd ?? null;
-}
-
-export function getBannerAdSize(): unknown {
-  return loadSdkModule()?.BannerAdSize?.ANCHORED_ADAPTIVE_BANNER ?? null;
-}
-
-export function getBannerAdUnitId(): string {
-  return ADMOB_TEST_AD_UNIT_IDS.banner[platformForAdMob()];
-}
+export function getBannerAdComponent(): unknown { return sdk?.BannerAd ?? null; }
+export function getBannerAdSize(): unknown { return sdk?.BannerAdSize.ANCHORED_ADAPTIVE_BANNER ?? null; }
+export function getBannerAdUnitId(): string { return unitId('banner'); }

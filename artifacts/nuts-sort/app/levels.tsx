@@ -6,6 +6,7 @@ import { useGame } from '@/game/GameProvider';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { Ionicons } from '@expo/vector-icons';
 import { LifeRefillModal } from '@/components/LifeRefillModal';
+import { AdBanner } from '@/components/AdBanner';
 import { LinearGradient } from 'expo-linear-gradient';
 
 export default function LevelsScreen() {
@@ -114,6 +115,7 @@ export default function LevelsScreen() {
         </View>
       </ScrollView>
 
+      <AdBanner />
       <LifeRefillModal visible={showLifeRefill} onClose={() => setShowLifeRefill(false)} />
     </View>
   );

@@ -9,7 +9,7 @@ import { readSave, writeSave } from './persistence';
 import { ActivePlayClock, elapseAttempt } from './timing';
 import {
   adAvailability, initializeAds, isAdShowing,
-  showAppOpenAd, showInterstitialAd, showRewardedAd,
+  showAppOpenAd, showInterstitialAd, showRewardedAd, subscribeAdState,
 } from '@/services/ads';
 import type {
   ActionResult, Attempt, GameContextValue, GameState, Move, Payment, PowerUp,
@@ -25,6 +25,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const current = useRef(state);
   const [loaded, setLoaded] = useState(false);
   const loadedRef = useRef(false);
+  const [startupAdsPending, setStartupAdsPending] = useState(true);
+  const startupPending = useRef(true);
+  const adsStarted = useRef(false);
   const [busy, setBusy] = useState(false);
   const operation = useRef(false);
   const [adBusy, setAdBusy] = useState(false);
@@ -69,7 +72,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     const now = mono();
     const s = current.current;
     const running = loadedRef.current && !storageFault.current && visible.current
-      && foreground.current && !operation.current && !adLock.current
+      && foreground.current && !startupPending.current && !operation.current && !adLock.current
       && !isAdShowing() && s.active?.status === 'playing';
     const delta = playClock.current.sample(now, running);
     if (!loadedRef.current || storageFault.current) return;
@@ -132,24 +135,50 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     void hydrate();
-    let cancelled = false;
-    void initializeAds().then(async () => {
-      if (cancelled) return;
+    return () => { generation.current++; };
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = subscribeAdState(() => {
       setAds(adAvailability());
-      // Do not interrupt gameplay if initialization finished after the player entered it.
-      if (!visible.current && foreground.current) {
+      advancePlayClock();
+    });
+    setAds(adAvailability());
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
+    if (!loaded || adsStarted.current) return;
+    adsStarted.current = true;
+    let cancelled = false;
+    // App-open is a cold loading-screen placement, never a late surprise on
+    // Home/Settings or a foreground-resume ad. First launch is eligible after
+    // consent; skip persisted interstitial boundaries to avoid stacking ads.
+    const deadline = mono() + 4_000;
+    const endStartup = () => {
+      startupPending.current = false;
+      if (!cancelled) setStartupAdsPending(false);
+    };
+    const startupTimer = setTimeout(endStartup, 4_000);
+    const canShowColdOpen = () => !cancelled && startupPending.current && mono() < deadline
+      && !visible.current && foreground.current && !operation.current
+      && !current.current.interstitialDue
+      && !storageFault.current;
+    void initializeAds().then(async () => {
+      if (canShowColdOpen()) {
         adLock.current = true;
         advancePlayClock();
         setAdBusy(true);
-        try { await showAppOpenAd(); } finally {
+        try { await showAppOpenAd(canShowColdOpen); } finally {
           adLock.current = false;
           advancePlayClock();
           if (!cancelled) setAdBusy(false);
         }
       }
-    }).catch(() => { if (!cancelled) setAds(adAvailability()); });
-    return () => { cancelled = true; generation.current++; };
-  }, []);
+    }).catch(() => { if (!cancelled) setAds(adAvailability()); })
+      .finally(() => { clearTimeout(startupTimer); endStartup(); });
+    return () => { cancelled = true; clearTimeout(startupTimer); startupPending.current = false; };
+  }, [loaded]);
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', next => {
@@ -185,7 +214,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
   async function exclusive(work: () => Promise<ActionResult>): Promise<ActionResult> {
     if (!loadedRef.current || storageFault.current) return fail('Progress is not ready. Please use Retry first.');
-    if (operation.current || adLock.current) return fail('Please wait for the current action to finish.');
+    if (startupPending.current || operation.current || adLock.current || isAdShowing()) return fail('Please wait for the current action to finish.');
     operation.current = true;
     advancePlayClock();
     setBusy(true);
@@ -213,8 +242,15 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       if (s.lives < 1) return fail('No lives left. Watch an ad for one life, or return after midnight.');
       if (s.interstitialDue && s.active?.status !== 'playing' && s.active?.status !== 'timeout') {
         adLock.current = true; setAdBusy(true);
-        try { await showInterstitialAd(); } finally { adLock.current = false; setAdBusy(false); }
+        try {
+          await showInterstitialAd(() => foreground.current
+            && current.current.active?.status !== 'playing'
+            && current.current.active?.status !== 'timeout');
+        } finally { adLock.current = false; setAdBusy(false); }
         s = { ...current.current, interstitialDue: false };
+        // Consume this boundary durably even on no-fill, before generation can
+        // throw; never create a backlog of ads on the next launch.
+        await publish(s);
       }
       let level = s.levels[id];
       if (!level) level = await generateLevel(id);
@@ -277,7 +313,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     advancePlayClock();
     const s = current.current;
     const a = s.active;
-    if (!loadedRef.current || storageFault.current || operation.current || adLock.current || !a || a.status !== 'playing') return;
+    if (!loadedRef.current || storageFault.current || operation.current || adLock.current || isAdShowing() || !a || a.status !== 'playing') return;
     if (!Number.isInteger(index) || !a.board[index]) return;
     if (a.selected === index) { store({ ...s, active: { ...a, selected: null } }, false); return; }
     if (a.selected === null) {
@@ -294,7 +330,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   function resetLevel() {
     advancePlayClock();
     const s = current.current, a = s.active;
-    if (storageFault.current || operation.current || adLock.current || !a || a.status !== 'playing') return;
+    if (storageFault.current || operation.current || adLock.current || isAdShowing() || !a || a.status !== 'playing') return;
     const initial = s.levels[a.levelId]!;
     const extras = Math.max(0, a.board.length - initial.board.length);
     store({
@@ -309,7 +345,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
   function abandonTimeout() {
     const s = current.current, a = s.active;
-    if (storageFault.current || operation.current || adLock.current || !a || a.status !== 'timeout') return;
+    if (storageFault.current || operation.current || adLock.current || isAdShowing() || !a || a.status !== 'timeout') return;
     const roundsPlayed = s.roundsPlayed + 1;
     const attempts = { ...s.attempts }; delete attempts[a.levelId];
     store({
@@ -443,7 +479,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   }
 
   const value: GameContextValue = {
-    state, loaded, busy, error, notice, adBusy, adsAvailable: ads.available,
+    state, loaded: loaded && !startupAdsPending, busy, error, notice, adBusy, adsAvailable: ads.available,
     adStatus: ads.message, catalog: CATALOG,
     startLevel, tapColumn, resetLevel,
     setPlaying,

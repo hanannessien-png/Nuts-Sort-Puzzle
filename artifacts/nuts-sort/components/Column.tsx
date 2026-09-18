@@ -30,9 +30,9 @@ export function Column({ index, nuts, geometry: g, selected, disabled, hintSourc
       accessibilityState={{ selected, disabled }}
       disabled={disabled}
       onPress={() => onTap(index)}
-      style={{ position: 'absolute', left: 16 + index * g.cell, top: 0, width: g.cell, height: g.height, zIndex: selected ? 20 : 1 }}
+      style={{ position: 'absolute', left: g.x(index) - 7, top: g.rowTop(index), width: g.cell, height: g.rowHeight, zIndex: selected ? 20 : 1 }}
     >
-      <View testID={`bolt-${index}`} pointerEvents="none" style={{ position: 'absolute', top: g.tipY, left: 9 }}>
+      <View testID={`bolt-${index}`} pointerEvents="none" style={{ position: 'absolute', top: g.tipY, left: 7 }}>
         <Bolt height={g.rodHeight} width={g.nutSize} />
       </View>
       {nuts.map((color, row) => (
@@ -50,7 +50,7 @@ export function Column({ index, nuts, geometry: g, selected, disabled, hintSourc
         />
       ))}
       <View pointerEvents="none" style={[styles.marker, {
-        top: g.baseY + 23,
+        top: g.baseY + 10,
         backgroundColor: selected ? theme.primary : hintSource || hintTarget ? theme.success : 'transparent',
       }]}>
         <Text style={{ color: selected || hintSource || hintTarget ? theme.surface : theme.textMuted, fontSize: 11, fontWeight: '700', letterSpacing: 1 }}>
@@ -73,7 +73,7 @@ function StackNut({ color, label, testID, y, liftY, size, selected, hidden, zInd
   const animated = useAnimatedStyle(() => ({ transform: [{ translateY: offset.value }] }));
   return (
     <Animated.View testID={testID} pointerEvents="none" style={[{
-      position: 'absolute', top: y, left: 9, opacity: hidden ? 0 : 1,
+      position: 'absolute', top: y, left: 7, opacity: hidden ? 0 : 1,
       zIndex: selected ? 100 : zIndex,
     }, animated]}>
       <Nut color={color} size={size} label={label} />

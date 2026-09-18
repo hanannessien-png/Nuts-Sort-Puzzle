@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ShopCategory, ShopItem } from '@/game/types';
 import { itemPrice } from '@/game/catalogue';
 import { CoinIcon } from '@/components/Icons';
+import { AdBanner } from '@/components/AdBanner';
 
 const CATEGORIES: { id: ShopCategory; label: string; icon: any }[] = [
   { id: 'themes', label: 'Themes', icon: 'color-palette' },
@@ -144,7 +145,8 @@ export default function ShopScreen() {
         )}
       </ScrollView>
 
-      <Modal visible={!!sheetItem} transparent animationType="slide">
+      <AdBanner />
+      <Modal visible={!!sheetItem} transparent animationType="slide" onRequestClose={() => setSheetItem(null)}>
         <View style={styles.sheetOverlay}>
           <View style={[styles.sheetCard, { backgroundColor: theme.surface }]}>
             <Text style={[styles.sheetTitle, { color: theme.text }]}>

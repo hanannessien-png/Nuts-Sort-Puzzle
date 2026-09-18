@@ -32,6 +32,19 @@ export const ADMOB_TEST_AD_UNIT_IDS = {
 export type AdPlatform = keyof typeof ADMOB_TEST_APP_IDS;
 export type AdFormat = keyof typeof ADMOB_TEST_AD_UNIT_IDS;
 
+// Production inventory will be supplied by the owner. Keep Google test units
+// in every slot until then; no guessed publisher IDs or environment fallbacks.
+export const ADMOB_AD_UNIT_IDS: Record<AdFormat, Record<AdPlatform, string>> = {
+  banner: { ...ADMOB_TEST_AD_UNIT_IDS.banner },
+  interstitial: { ...ADMOB_TEST_AD_UNIT_IDS.interstitial },
+  rewarded: { ...ADMOB_TEST_AD_UNIT_IDS.rewarded },
+  appOpen: { ...ADMOB_TEST_AD_UNIT_IDS.appOpen },
+};
+
+export function getAdUnitId(format: AdFormat, platform: AdPlatform): string {
+  return (__DEV__ ? ADMOB_TEST_AD_UNIT_IDS : ADMOB_AD_UNIT_IDS)[format][platform];
+}
+
 export function getTestAdUnitId(
   format: AdFormat,
   platform: AdPlatform,

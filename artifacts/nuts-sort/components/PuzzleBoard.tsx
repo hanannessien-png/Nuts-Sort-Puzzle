@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { AppState, ScrollView, View } from 'react-native';
-import Animated, { cancelAnimation, Easing, runOnJS, useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withSequence, withTiming } from 'react-native-reanimated';
+import { AppState, View } from 'react-native';
+import Animated, { cancelAnimation, Easing, runOnJS, useAnimatedStyle, useReducedMotion, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
 import type { Attempt } from '@/game/types';
 import { useNutPalette } from '@/hooks/useThemeColors';
 import { Column } from './Column';
 import { Nut } from './Nut';
-import { boardGeometry, type BoardGeometry } from './boardGeometry';
+import { boardGeometry, transferPath, type BoardGeometry } from './boardGeometry';
 
 type Flight = {
   id: number; color: number; from: number; to: number; fromRow: number; toRow: number; alreadyLifted: boolean;
@@ -16,12 +16,13 @@ interface Props {
   enabled: boolean;
   blocked: boolean;
   colorLabels: boolean;
+  availableHeight: number;
   onTap: (index: number) => void;
   onBusy: (busy: boolean) => void;
   onSettled: (levelId: number, moves: number) => void;
 }
 
-export function PuzzleBoard({ active, enabled, blocked, colorLabels, onTap, onBusy, onSettled }: Props) {
+export function PuzzleBoard({ active, enabled, blocked, colorLabels, availableHeight, onTap, onBusy, onSettled }: Props) {
   const [width, setWidth] = useState(360);
   const [flight, setFlight] = useState<Flight | null>(null);
   const previous = useRef(active);
@@ -31,7 +32,7 @@ export function PuzzleBoard({ active, enabled, blocked, colorLabels, onTap, onBu
   const serial = useRef(0);
   const reduced = useReducedMotion();
   const palette = useNutPalette();
-  const g = useMemo(() => boardGeometry(width, active.board.length, active.capacity), [width, active.board.length, active.capacity]);
+  const g = useMemo(() => boardGeometry(width, active.board.length, active.capacity, availableHeight), [width, active.board.length, active.capacity, availableHeight]);
 
   const settle = useCallback(() => {
     serial.current++;
@@ -88,6 +89,10 @@ export function PuzzleBoard({ active, enabled, blocked, colorLabels, onTap, onBu
     return () => subscription.remove();
   }, [settle]);
 
+  useEffect(() => {
+    if (lock.current) settle();
+  }, [g, settle]);
+
   const tap = (index: number) => {
     if (!enabled || blocked || lock.current || active.status !== 'playing') return;
     if (active.selected !== null && index !== active.selected && active.board[index].length < active.capacity) {
@@ -102,10 +107,8 @@ export function PuzzleBoard({ active, enabled, blocked, colorLabels, onTap, onBu
   }, [settle]);
 
   return (
-    <View testID="puzzle-board" onLayout={event => setWidth(event.nativeEvent.layout.width)} style={{ width: '100%', minHeight: g.height }}>
-      <ScrollView horizontal scrollEnabled={!flight} showsHorizontalScrollIndicator={false} bounces={false}
-        contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}>
-        <View style={{ width: g.width, height: g.height, position: 'relative' }}>
+    <View testID="puzzle-board" onLayout={event => setWidth(event.nativeEvent.layout.width)} style={{ width: '100%', height: g.height }}>
+        <View style={{ width: g.width, height: g.height, position: 'relative', alignSelf: 'center' }}>
           {active.board.map((nuts, index) => (
             <Column key={index} index={index} nuts={nuts} geometry={g}
               selected={enabled && !flight && active.selected === index}
@@ -118,7 +121,6 @@ export function PuzzleBoard({ active, enabled, blocked, colorLabels, onTap, onBu
             color={palette[flight.color % palette.length]} label={colorLabels ? String.fromCharCode(65 + flight.color) : undefined}
             onComplete={complete} />}
         </View>
-      </ScrollView>
     </View>
   );
 }
@@ -127,17 +129,15 @@ function FlyingPiece({ flight: f, geometry: g, color, label, onComplete }: {
   flight: Flight; geometry: BoardGeometry; color: string; label?: string; onComplete: (id: number) => void;
 }) {
   const x = useSharedValue(g.x(f.from));
-  const y = useSharedValue(f.alreadyLifted ? g.liftY : g.y(f.fromRow));
+  const y = useSharedValue(f.alreadyLifted ? g.liftAt(f.from) : g.y(f.fromRow, f.from));
   useEffect(() => {
-    const lift = f.alreadyLifted ? 70 : 180;
-    const cross = Math.min(340, 210 + Math.abs(f.to - f.from) * 30);
-    y.value = withSequence(
-      withTiming(g.liftY, { duration: lift, easing: Easing.out(Easing.cubic) }),
-      withDelay(cross, withTiming(g.y(f.toRow), { duration: 180, easing: Easing.inOut(Easing.cubic) }, finished => {
-        if (finished) runOnJS(onComplete)(f.id);
-      })),
-    );
-    x.value = withDelay(lift, withTiming(g.x(f.to), { duration: cross, easing: Easing.inOut(Easing.cubic) }));
+    const points = transferPath(g, f.from, f.to, f.toRow, f.alreadyLifted);
+    x.value = withSequence(...points.map(point => withTiming(point.x, { duration: point.duration, easing: Easing.inOut(Easing.cubic) })));
+    y.value = withSequence(...points.map((point, index) => withTiming(point.y, {
+      duration: point.duration, easing: Easing.inOut(Easing.cubic),
+    }, finished => {
+      if (finished && index === points.length - 1) runOnJS(onComplete)(f.id);
+    })));
     return () => { cancelAnimation(x); cancelAnimation(y); };
   }, [f, g, onComplete, x, y]);
   const style = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }, { translateY: y.value }] }));

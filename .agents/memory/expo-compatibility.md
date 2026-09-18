@@ -14,3 +14,9 @@ Separate the native ad implementation from the web module graph, not just its ru
 **Why:** Metro followed a guarded lazy `require` of the mobile ads SDK while building web. It pulled in the native Fabric renderer and failed on an unrelated-looking React DevTools internal path. A runtime platform/Expo Go check alone did not protect the browser bundle.
 
 **How to apply:** Preserve a web-specific adapter with no native SDK imports. If a future web build reports missing React Native internals, inspect the import chain for a native dependency before changing SDK versions or editing vendor files.
+
+Validate native advertising against the installed SDK's TypeScript API, not a permissive hand-written adapter type.
+
+**Why:** The previous adapter referenced nonexistent SDK initialization/factory methods. Browser and Expo Go checks could not expose this, because those environments intentionally bypass native advertising entirely.
+
+**How to apply:** Keep native adapter calls checked against the real installed SDK types, and keep test doubles aligned with those exports. A successful web preview, Expo Doctor, native prebuild, or JavaScript export still does not establish that a signed native binary compiles or that real ads deliver.

@@ -29,6 +29,7 @@ export default function PlayScreen() {
   const [focused, setFocused] = useState(false);
   const [animating, setAnimating] = useState(false);
   const [settledMove, setSettledMove] = useState('');
+  const [boardHeight, setBoardHeight] = useState(360);
   const onBoardBusy = useCallback((value: boolean) => setAnimating(value), []);
   const onBoardSettled = useCallback((levelId: number, moves: number) => setSettledMove(`${levelId}:${moves}`), []);
 
@@ -118,7 +119,9 @@ export default function PlayScreen() {
       </View>
 
       {/* Board */}
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingVertical: 20 }} showsVerticalScrollIndicator={false}>
+      <ScrollView testID="play-table-scroll" style={{ flex: 1 }} scrollEnabled={!animating}
+        onLayout={event => setBoardHeight(Math.max(240, event.nativeEvent.layout.height - 150))}
+        contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingVertical: 12 }} showsVerticalScrollIndicator>
         <View style={{ paddingHorizontal: 26, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
           <View>
             <Text style={{ color: theme.primary, fontSize: 10, letterSpacing: 2.5, fontWeight: '700', marginBottom: 5 }}>THE SORTING TABLE</Text>
@@ -129,7 +132,7 @@ export default function PlayScreen() {
           </View>
         </View>
         <View style={{ marginHorizontal: 12, backgroundColor: theme.surface, borderRadius: 26, borderWidth: 1, borderColor: theme.border, paddingTop: 10, paddingBottom: 14 }}>
-          <PuzzleBoard active={active} enabled={focused && !isPaused} blocked={game.busy || game.adBusy}
+          <PuzzleBoard active={active} availableHeight={boardHeight} enabled={focused && !isPaused} blocked={game.busy || game.adBusy}
             colorLabels={state.settings.colorLabels} onTap={tapColumn} onBusy={onBoardBusy} onSettled={onBoardSettled} />
           <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6 }}>
             {Array.from({ length: level?.colors ?? 3 }, (_, i) => <View key={i} style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: palette[i % palette.length] }} />)}
@@ -139,7 +142,6 @@ export default function PlayScreen() {
         <Text style={{ color: theme.textMuted, textAlign: 'center', fontSize: 12, marginTop: 17, paddingHorizontal: 16 }}>
           {active.selected !== null ? 'Choose a new bolt · Tap the selected nut to cancel' : 'Tap a top nut, then choose its new bolt'}
         </Text>
-        {active.board.length > 4 && <Text style={{ color: theme.textMuted, textAlign: 'center', fontSize: 11, marginTop: 7 }}>Swipe the table to see all bolts</Text>}
       </ScrollView>
 
       {/* Power-ups Bar */}

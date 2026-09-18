@@ -1,17 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { Platform, StyleSheet, Text, View } from 'react-native';
+import { AppState, Platform, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   adAvailability,
   getBannerAdComponent,
   getBannerAdSize,
   getBannerAdUnitId,
+  subscribeAdState,
 } from '@/services/ads';
 import { ADS_COLORS } from '@/constants/ads';
 
 type Availability = ReturnType<typeof adAvailability>;
-
-const POLL_INTERVAL_MS = 1_000;
 
 function UnavailableFooter({ message }: { message: string }) {
   return (
@@ -37,6 +37,15 @@ function UnavailableFooter({ message }: { message: string }) {
  * compact neutral footer instead of fake creative.
  */
 export function AdBanner() {
+  const insets = useSafeAreaInsets();
+  return (
+    <View style={{ paddingBottom: insets.bottom, backgroundColor: ADS_COLORS.surface }}>
+      <BannerPlacement />
+    </View>
+  );
+}
+
+function BannerPlacement() {
   const [availability, setAvailability] = useState<Availability>(() =>
     adAvailability(),
   );
@@ -47,9 +56,23 @@ export function AdBanner() {
       setAvailability(adAvailability());
     };
     updateAvailability();
-    const interval = setInterval(updateAvailability, POLL_INTERVAL_MS);
-    return () => clearInterval(interval);
+    const unsubscribe = subscribeAdState(updateAvailability);
+    const foreground = AppState.addEventListener('change', state => {
+      if (state === 'active') {
+        updateAvailability();
+        setBannerError(null);
+      }
+    });
+    return () => { unsubscribe(); foreground.remove(); };
   }, []);
+
+  useEffect(() => {
+    if (!bannerError || !availability.available) return;
+    // No-fill/offline should not permanently remove the placement. Retry only
+    // at a conservative interval, and cancel when the screen unmounts.
+    const timer = setTimeout(() => setBannerError(null), 60_000);
+    return () => clearTimeout(timer);
+  }, [bannerError, availability.available]);
 
   const unavailableMessage =
     Platform.OS === 'web'

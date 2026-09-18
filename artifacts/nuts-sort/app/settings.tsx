@@ -7,6 +7,8 @@ import { useThemeColors } from '@/hooks/useThemeColors';
 import { Ionicons } from '@expo/vector-icons';
 import { THEMES } from '@/constants/theme';
 import { LinearGradient } from 'expo-linear-gradient';
+import { AdPrivacySettings } from '@/components/AdPrivacySettings';
+import { AdBanner } from '@/components/AdBanner';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -95,7 +97,9 @@ export default function SettingsScreen() {
             })}
           </View>
         </View>
+        <AdPrivacySettings />
       </ScrollView>
+      <AdBanner />
     </View>
   );
 }
