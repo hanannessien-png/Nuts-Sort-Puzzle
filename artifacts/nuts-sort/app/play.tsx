@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView, Modal, Platform } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Modal, Platform } from 'react-native';
 import { Stack, useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGame } from '@/game/GameProvider';
@@ -118,31 +118,32 @@ export default function PlayScreen() {
         </Pressable>
       </View>
 
-      {/* Board */}
-      <ScrollView testID="play-table-scroll" style={{ flex: 1 }} scrollEnabled={!animating}
-        onLayout={event => setBoardHeight(Math.max(240, event.nativeEvent.layout.height - 150))}
-        contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingVertical: 12 }} showsVerticalScrollIndicator>
-        <View style={{ paddingHorizontal: 26, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+      {/* The complete table scales into this fixed viewport; gameplay never scrolls. */}
+      <View testID="play-table-viewport" style={styles.tableViewport}>
+        <View style={styles.levelHeader}>
           <View>
             <Text style={{ color: theme.primary, fontSize: 10, letterSpacing: 2.5, fontWeight: '700', marginBottom: 5 }}>THE SORTING TABLE</Text>
-            <Text style={{ color: theme.text, fontSize: 32, fontWeight: '700', letterSpacing: -1 }}>Level {String(active.levelId).padStart(2, '0')}</Text>
+            <Text style={{ color: theme.text, fontSize: 27, fontWeight: '700', letterSpacing: -1 }}>Level {String(active.levelId).padStart(2, '0')}</Text>
           </View>
           <View style={{ backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1, borderRadius: 16, paddingVertical: 9, paddingHorizontal: 13 }}>
             <Text style={{ color: theme.primary, fontWeight: '700', fontSize: 12 }}>{level?.difficulty ?? 'Puzzle'}</Text>
           </View>
         </View>
-        <View style={{ marginHorizontal: 12, backgroundColor: theme.surface, borderRadius: 26, borderWidth: 1, borderColor: theme.border, paddingTop: 10, paddingBottom: 14 }}>
+        <View
+          style={[styles.boardCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
+          onLayout={event => setBoardHeight(Math.max(1, event.nativeEvent.layout.height - 38))}
+        >
           <PuzzleBoard active={active} availableHeight={boardHeight} enabled={focused && !isPaused} blocked={game.busy || game.adBusy}
             colorLabels={state.settings.colorLabels} onTap={tapColumn} onBusy={onBoardBusy} onSettled={onBoardSettled} />
-          <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6 }}>
+          <View style={styles.boardProgress}>
             {Array.from({ length: level?.colors ?? 3 }, (_, i) => <View key={i} style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: palette[i % palette.length] }} />)}
             <Text style={{ color: theme.textMuted, fontSize: 12, marginLeft: 4 }}>{sorted} / {level?.colors ?? 3} colors together</Text>
           </View>
         </View>
-        <Text style={{ color: theme.textMuted, textAlign: 'center', fontSize: 12, marginTop: 17, paddingHorizontal: 16 }}>
+        <Text style={{ color: theme.textMuted, textAlign: 'center', fontSize: 11, paddingHorizontal: 16 }}>
           {active.selected !== null ? 'Choose a new bolt · Tap the selected nut to cancel' : 'Tap a top nut, then choose its new bolt'}
         </Text>
-      </ScrollView>
+      </View>
 
       {/* Power-ups Bar */}
       <View style={[styles.powerups, { paddingBottom: Math.max(insets.bottom, 20) }]}>
@@ -276,6 +277,37 @@ function PowerUpButton({ icon, label, cost, onPress, theme, testID }: any) {
 }
 
 const styles = StyleSheet.create({
+  tableViewport: {
+    flex: 1,
+    minHeight: 0,
+    paddingTop: 6,
+    paddingBottom: 5,
+  },
+  levelHeader: {
+    paddingHorizontal: 26,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  boardCard: {
+    flex: 1,
+    minHeight: 0,
+    marginHorizontal: 12,
+    borderRadius: 26,
+    borderWidth: 1,
+    paddingTop: 4,
+    paddingBottom: 6,
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  boardProgress: {
+    height: 28,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6,
+  },
   container: {
     flex: 1,
   },
