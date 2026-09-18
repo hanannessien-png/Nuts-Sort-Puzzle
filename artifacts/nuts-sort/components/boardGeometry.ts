@@ -38,17 +38,17 @@ export type BoardGeometry = ReturnType<typeof boardGeometry>;
 
 /** Axis-aligned waypoints: lift, clear the row, use a side lane, then land. */
 export function transferPath(g: BoardGeometry, from: number, to: number, toRow: number, alreadyLifted: boolean) {
-  const points = [{ x: g.x(from), y: g.liftAt(from), duration: alreadyLifted ? 70 : 180 }];
+  const points = [{ x: g.x(from), y: g.liftAt(from), duration: alreadyLifted ? 40 : 100 }];
   if (g.rowOf(from) !== g.rowOf(to)) {
     const lane = (g.x(from) + g.x(to) + g.nutSize) / 2 < g.width / 2 ? 0 : g.width - g.nutSize;
     points.push(
-      { x: lane, y: g.liftAt(from), duration: 150 },
-      { x: lane, y: g.liftAt(to), duration: Math.min(350, 160 + Math.abs(g.rowOf(from) - g.rowOf(to)) * 70) },
+      { x: lane, y: g.liftAt(from), duration: 90 },
+      { x: lane, y: g.liftAt(to), duration: Math.min(240, 110 + Math.abs(g.rowOf(from) - g.rowOf(to)) * 45) },
     );
   }
   points.push(
-    { x: g.x(to), y: g.liftAt(to), duration: 220 },
-    { x: g.x(to), y: g.y(toRow, to), duration: 180 },
+    { x: g.x(to), y: g.liftAt(to), duration: 130 },
+    { x: g.x(to), y: g.y(toRow, to), duration: 100 },
   );
   return points;
 }

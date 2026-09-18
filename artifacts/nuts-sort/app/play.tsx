@@ -146,7 +146,7 @@ export default function PlayScreen() {
       </View>
 
       {/* Power-ups Bar */}
-      <View style={[styles.powerups, { paddingBottom: Math.max(insets.bottom, 20) }]}>
+      <View style={[styles.powerups, { paddingBottom: Math.max(insets.bottom, 8) }]}>
         <PowerUpButton 
           icon="bulb" 
           label="Hint" 
@@ -267,7 +267,7 @@ export default function PlayScreen() {
 function PowerUpButton({ icon, label, cost, onPress, theme, testID }: any) {
   return (
     <Pressable onPress={onPress} style={[styles.powerupBtn, { backgroundColor: theme.surface, borderColor: theme.border }]} testID={testID}>
-      <Ionicons name={icon} size={28} color={theme.primary} />
+      <Ionicons name={icon} size={20} color={theme.primary} />
       <Text style={[styles.powerupLabel, { color: theme.text }]}>{label}</Text>
       <View style={[styles.costBadge, { backgroundColor: theme.primaryMuted }]}>
         <Text style={[styles.costText, { color: theme.text }]}>{cost}</Text>
@@ -316,7 +316,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingBottom: 8,
   },
   iconBtn: {
     padding: 8,
@@ -348,18 +348,21 @@ const styles = StyleSheet.create({
   powerups: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 16,
-    paddingHorizontal: 16,
-    paddingTop: 16,
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingTop: 6,
   },
   powerupBtn: {
+    flex: 1,
+    maxWidth: 112,
+    minHeight: 66,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 12,
-    borderRadius: 16,
+    paddingVertical: 5,
+    paddingHorizontal: 6,
+    borderRadius: 13,
     borderWidth: 1,
-    minWidth: 80,
-    gap: 4,
+    gap: 1,
     shadowColor: '#000',
     shadowOpacity: 0.05,
     shadowRadius: 3,
@@ -367,14 +370,14 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   powerupLabel: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
   },
   costBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
     borderRadius: 10,
-    marginTop: 4,
+    marginTop: 1,
   },
   costText: {
     fontSize: 10,
