@@ -67,8 +67,10 @@ project is the committed folder **`expo-android/`** at the repository root:
 2. On expo.dev → project → GitHub settings, set **Base directory** to
    `expo-android` (it can also be set per build in the "Build from GitHub"
    dialog).
-3. `app.json` `slug`, `owner` and `extra.eas.projectId` must match the
-   expo.dev project, or the build is rejected.
+3. `slug`, `owner` and `extra.eas.projectId` must match the expo.dev project
+   (`@hana125/nuts-sort`). They live in `expo-project.json` and are injected
+   only into `expo-android/app.json`; the in-repo app.json stays unlinked so
+   Replit's managed Expo Go preview keeps working.
 
 `expo-android/` is outside the pnpm workspace globs, so Expo treats it as a
 plain npm project (pinned versions + `package-lock.json`). Never edit it by

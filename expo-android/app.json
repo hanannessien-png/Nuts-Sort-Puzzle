@@ -56,6 +56,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "owner": "hana125",
+    "extra": {
+      "eas": {
+        "projectId": "99e47585-d978-40e0-a7a3-544739d9d08c"
+      }
     }
   }
 }

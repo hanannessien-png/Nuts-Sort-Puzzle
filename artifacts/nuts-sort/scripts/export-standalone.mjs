@@ -40,7 +40,7 @@ const EXCLUDE = new Set([
   'node_modules', '.expo', 'dist', 'static-build', 'web-build', 'android', 'ios',
   'server', '.replit-artifact', 'expo-env.d.ts',
 ]);
-const EXCLUDE_FILES = new Set([path.join('scripts', 'build.js'), path.join('scripts', 'export-standalone.mjs')]);
+const EXCLUDE_FILES = new Set(['expo-project.json', path.join('scripts', 'build.js'), path.join('scripts', 'export-standalone.mjs')]);
 const REPLIT_ONLY_DEPS = new Set(['create-launch']);
 
 rmSync(outDir, { recursive: true, force: true });
@@ -90,6 +90,16 @@ const pkg = {
   dependencies: pin({ ...source.dependencies, ...source.devDependencies }),
 };
 writeFileSync(path.join(outDir, 'package.json'), `${JSON.stringify(pkg, null, 2)}\n`);
+
+// Link the build copy to the owner's Expo project (kept out of the in-repo
+// app.json so Replit's managed Expo Go preview keeps working).
+const project = JSON.parse(readFileSync(path.join(appDir, 'expo-project.json'), 'utf8'));
+const appFile = path.join(outDir, 'app.json');
+const appJson = JSON.parse(readFileSync(appFile, 'utf8'));
+if (appJson.expo.slug !== project.slug) throw new Error(`app.json slug "${appJson.expo.slug}" must equal the Expo project slug "${project.slug}".`);
+appJson.expo.owner = project.owner;
+appJson.expo.extra = { ...appJson.expo.extra, eas: { ...appJson.expo.extra?.eas, projectId: project.projectId } };
+writeFileSync(appFile, `${JSON.stringify(appJson, null, 2)}\n`);
 
 // The monorepo pins pnpm for EAS; the standalone copy uses npm + package-lock.
 const easFile = path.join(outDir, 'eas.json');

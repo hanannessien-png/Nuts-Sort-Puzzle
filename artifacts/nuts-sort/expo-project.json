@@ -1,0 +1,6 @@
+{
+  "_comment": "Owner's Expo project. Injected into expo-android/app.json by scripts/export-standalone.mjs only, so the Replit preview (signed in as Replit's managed Expo account) is unaffected.",
+  "owner": "hana125",
+  "slug": "nuts-sort",
+  "projectId": "99e47585-d978-40e0-a7a3-544739d9d08c"
+}
