@@ -130,7 +130,7 @@ const unsubscribe = h.api.subscribeAdState(() => updates++);
 
 let result = h.api.showRewardedAd();
 let ad = h.instances.at(-1);
-assert.match(ad.id, /ca-app-pub-3940256099942544/);
+assert.equal(ad.id, "ca-app-pub-6225158226956884/8690168870", "Production rewarded unit is used outside dev/test-forced builds");
 ad.emit('rewarded_loaded');
 assert.equal(ad.shows, 1);
 assert.equal((await h.api.showRewardedAd()).earned, false, 'Concurrent presentations are rejected');

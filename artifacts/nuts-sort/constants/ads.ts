@@ -39,10 +39,10 @@ export type AdFormat = keyof typeof ADMOB_TEST_AD_UNIT_IDS;
 // androidAppId. Until then every slot is a Google test unit, and the
 // production preflight (scripts/validate-release.mjs) refuses a store build.
 export const ADMOB_AD_UNIT_IDS: Record<AdFormat, Record<AdPlatform, string>> = {
-  banner: { ...ADMOB_TEST_AD_UNIT_IDS.banner },
-  interstitial: { ...ADMOB_TEST_AD_UNIT_IDS.interstitial },
-  rewarded: { ...ADMOB_TEST_AD_UNIT_IDS.rewarded },
-  appOpen: { ...ADMOB_TEST_AD_UNIT_IDS.appOpen },
+  banner: { ...ADMOB_TEST_AD_UNIT_IDS.banner, android: 'ca-app-pub-6225158226956884/3735646084' },
+  interstitial: { ...ADMOB_TEST_AD_UNIT_IDS.interstitial, android: 'ca-app-pub-6225158226956884/8628880118' },
+  rewarded: { ...ADMOB_TEST_AD_UNIT_IDS.rewarded, android: 'ca-app-pub-6225158226956884/8690168870' },
+  appOpen: { ...ADMOB_TEST_AD_UNIT_IDS.appOpen, android: 'ca-app-pub-6225158226956884/8796401071' },
 };
 
 /**

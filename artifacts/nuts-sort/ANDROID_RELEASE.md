@@ -28,7 +28,7 @@ guard, not proof of AdMob ownership, ad approval, valid signing, or store accept
 
 1. Supply the **Android AdMob app ID** (`ca-app-pub-…~…`) and four Android
    **ad-unit IDs** (`ca-app-pub-…/…`): banner, interstitial, rewarded, app-open.
-   Update the Google Mobile Ads plugin's `androidAppId` in `app.json`, and
+   (Done — the owner IDs are in place.) Update the Google Mobile Ads plugin's `androidAppId` in `app.json`, and
    assign the four Android values in `ADMOB_AD_UNIT_IDS` in `constants/ads.ts`.
    Keep `ADMOB_TEST_AD_UNIT_IDS` unchanged: development builds always use it.
    iOS IDs remain test inventory until an iOS release is separately configured.
