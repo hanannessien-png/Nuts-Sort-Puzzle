@@ -1,6 +1,16 @@
-import type { ShopItem } from './types';
+import type { PowerPack, ShopItem } from './types';
 
 export const POWER_PRICES = { hint: 50, undo: 50, extraBolt: 100 } as const;
+
+/** Fixed-price stock packs. Larger packs save 10%; only single units may be earned by ad. */
+export const POWER_PACKS: PowerPack[] = [
+  { id: 'pack-hint-1', kind: 'hint', count: 1, price: 50, name: 'Hint', description: 'Shows one verified next move.' },
+  { id: 'pack-hint-5', kind: 'hint', count: 5, price: 225, name: 'Hint Pack', description: 'Five hints. Save 10%.' },
+  { id: 'pack-undo-1', kind: 'undo', count: 1, price: 50, name: 'Undo', description: 'Takes back your last move.' },
+  { id: 'pack-undo-5', kind: 'undo', count: 5, price: 225, name: 'Undo Pack', description: 'Five undos. Save 10%.' },
+  { id: 'pack-bolt-1', kind: 'extraBolt', count: 1, price: 100, name: 'Extra Bolt', description: 'Adds one empty bolt to the board.' },
+  { id: 'pack-bolt-3', kind: 'extraBolt', count: 3, price: 270, name: 'Bolt Pack', description: 'Three extra bolts. Save 10%.' },
+];
 
 export const CATALOG: ShopItem[] = [
   { id: 'theme-light', name: 'The Original', description: 'A little warmth. A fresh start.', category: 'themes', price: 0, rarity: 'Classic', appearance: 'default' },

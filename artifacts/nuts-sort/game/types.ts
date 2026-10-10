@@ -53,7 +53,17 @@ export interface Attempt {
 }
 export type ShopCategory = 'themes' | 'nuts' | 'bolts' | 'bases' | 'bundles';
 export type Payment = 'coins' | 'ad';
+/** 'stock' spends one owned power-up bought earlier in the shop. */
+export type PowerPayment = Payment | 'stock';
 export type PowerUp = 'hint' | 'undo' | 'extraBolt';
+export interface PowerPack {
+  id: string;
+  kind: PowerUp;
+  count: number;
+  price: number;
+  name: string;
+  description: string;
+}
 export interface ShopItem {
   id: string;
   name: string;
@@ -81,6 +91,10 @@ export interface GameState {
   clock: { highWater: number; lastResetDay: number; suspicious: boolean };
   roundsPlayed: number;
   interstitialDue: boolean;
+  /** Owned power-ups bought in the shop; consumed only when an effect applies. */
+  powerups: Record<PowerUp, number>;
+  /** Difficulty rules version the stored unfinished boards were generated with. */
+  levelRules: number;
 }
 export interface ActionResult { ok: boolean; message?: string }
 export interface GameContextValue {
@@ -98,7 +112,9 @@ export interface GameContextValue {
   resetLevel: () => void;
   setPlaying: (playing: boolean) => void;
   abandonTimeout: () => void;
-  usePowerUp: (kind: PowerUp, payment: Payment) => Promise<ActionResult>;
+  usePowerUp: (kind: PowerUp, payment: PowerPayment) => Promise<ActionResult>;
+  buyPowerPack: (id: string, payment: Payment) => Promise<ActionResult>;
+  powerPacks: PowerPack[];
   continueByAd: () => Promise<ActionResult>;
   gainLifeByAd: () => Promise<ActionResult>;
   doubleReward: () => Promise<ActionResult>;

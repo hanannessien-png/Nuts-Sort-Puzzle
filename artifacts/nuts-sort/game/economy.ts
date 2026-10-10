@@ -1,5 +1,8 @@
 import type { GameState, Level } from './types';
 
+/** Bump when level generation rules change and unfinished boards should be rebuilt. */
+export const LEVEL_RULES_VERSION = 2;
+
 export const localDay = (time: number) => {
   const date = new Date(time);
   return Math.floor(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86_400_000);
@@ -31,7 +34,24 @@ export function initialState(now: number): GameState {
     daily: { streak: 0, lastClaimDay: 0, lastReward: 0, totalClaimed: 0 },
     clock: { highWater: now, lastResetDay: localDay(now), suspicious: false },
     roundsPlayed: 0, interstitialDue: false,
+    powerups: { hint: 0, undo: 0, extraBolt: 0 },
+    levelRules: LEVEL_RULES_VERSION,
   };
+}
+
+/**
+ * One-time upgrade requested by the owner: unfinished levels (no completion
+ * record) are discarded so they regenerate with the current difficulty rules.
+ * Completed boards, records, coins and inventory are kept untouched, so replay
+ * scores remain comparable. Unfinished attempts on discarded boards go too.
+ */
+export function applyLevelRules(state: GameState): GameState {
+  if (state.levelRules >= LEVEL_RULES_VERSION) return state;
+  const done = (id: number | string) => Boolean(state.records[String(id)]);
+  const levels = Object.fromEntries(Object.entries(state.levels).filter(([id]) => done(id)));
+  const attempts = Object.fromEntries(Object.entries(state.attempts).filter(([id]) => done(id)));
+  const active = state.active && done(state.active.levelId) ? state.active : null;
+  return { ...state, levels, attempts, active, levelRules: LEVEL_RULES_VERSION };
 }
 
 /**

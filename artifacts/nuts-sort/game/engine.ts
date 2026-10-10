@@ -502,18 +502,25 @@ export async function solveBoard(
     : solveAStar(board, capacity, options);
 }
 
+/**
+ * Difficulty rules v2 (LEVEL_RULES_VERSION in economy.ts): the owner asked for
+ * a medium step up. Level 1 keeps its agreed 3-color layout; later levels need
+ * longer certified solutions and reach large boards sooner, while every board
+ * is still solver-verified before play.
+ */
+
 function earlySpec(id: number): LevelSpec | null {
   const specs: LevelSpec[] = [
     { colors: 3, nuts: 3, capacity: 4, columns: 3, scramble: 2, minOptimal: 2, maxOptimal: 4, difficulty: 'Easy' },
-    { colors: 3, nuts: 3, capacity: 4, columns: 3, scramble: 4, minOptimal: 2, maxOptimal: 5, difficulty: 'Easy' },
     { colors: 3, nuts: 3, capacity: 4, columns: 3, scramble: 6, minOptimal: 3, maxOptimal: 6, difficulty: 'Easy' },
-    { colors: 3, nuts: 4, capacity: 4, columns: 4, scramble: 7, minOptimal: 3, maxOptimal: 7, difficulty: 'Gentle' },
-    { colors: 3, nuts: 4, capacity: 5, columns: 4, scramble: 9, minOptimal: 4, maxOptimal: 8, difficulty: 'Gentle' },
-    { colors: 4, nuts: 3, capacity: 4, columns: 5, scramble: 9, minOptimal: 4, maxOptimal: 9, difficulty: 'Gentle' },
+    { colors: 3, nuts: 4, capacity: 4, columns: 4, scramble: 8, minOptimal: 4, maxOptimal: 8, difficulty: 'Gentle' },
+    { colors: 3, nuts: 4, capacity: 5, columns: 4, scramble: 10, minOptimal: 5, maxOptimal: 9, difficulty: 'Gentle' },
     { colors: 4, nuts: 3, capacity: 4, columns: 5, scramble: 11, minOptimal: 5, maxOptimal: 10, difficulty: 'Medium' },
-    { colors: 4, nuts: 4, capacity: 5, columns: 5, scramble: 12, minOptimal: 5, maxOptimal: 11, difficulty: 'Medium' },
-    { colors: 4, nuts: 4, capacity: 5, columns: 5, scramble: 14, minOptimal: 6, maxOptimal: 12, difficulty: 'Medium' },
-    { colors: 4, nuts: 4, capacity: 5, columns: 5, scramble: 16, minOptimal: 6, maxOptimal: 13, difficulty: 'Medium' },
+    { colors: 4, nuts: 4, capacity: 5, columns: 5, scramble: 13, minOptimal: 6, maxOptimal: 12, difficulty: 'Medium' },
+    { colors: 4, nuts: 4, capacity: 4, columns: 5, scramble: 14, minOptimal: 7, maxOptimal: 13, difficulty: 'Medium' },
+    { colors: 4, nuts: 4, capacity: 4, columns: 5, scramble: 16, minOptimal: 8, maxOptimal: 14, difficulty: 'Medium' },
+    { colors: 4, nuts: 4, capacity: 4, columns: 5, scramble: 18, minOptimal: 9, maxOptimal: 15, difficulty: 'Hard' },
+    { colors: 4, nuts: 4, capacity: 4, columns: 5, scramble: 20, minOptimal: 10, maxOptimal: 16, difficulty: 'Hard' },
   ];
   return specs[id - 1] ?? null;
 }
@@ -522,23 +529,17 @@ function levelSpec(id: number): LevelSpec {
   const early = earlySpec(id);
   if (early) return early;
 
-  const tier = Math.floor((id - 1) / 6);
-  const colors = Math.min(6, 3 + tier);
-  const nuts = Math.min(5, 3 + Math.floor((id - 1) / 10));
-  const difficulty: Level['difficulty'] = id < 17
-    ? 'Medium'
-    : id < 31 ? 'Hard' : 'Expert';
-  // Keep the random walk growing, but leave enough empty bolts at the largest
-  // sizes that an on-device solver can still certify a board promptly.
-  const scramble = Math.min(32, 14 + Math.floor(id * 0.65));
+  const colors = Math.min(6, 4 + Math.floor((id - 11) / 4));
+  const nuts = Math.min(5, 4 + Math.floor((id - 11) / 8));
+  const difficulty: Level['difficulty'] = id < 14 ? 'Medium' : id < 26 ? 'Hard' : 'Expert';
   return {
     colors,
     nuts,
     capacity: nuts,
     columns: colors + (colors < 5 ? 1 : 3),
-    scramble,
-    minOptimal: Math.min(12, 5 + Math.floor(id / 6)),
-    maxOptimal: Math.min(28, 14 + Math.floor(id * 0.6)),
+    scramble: Math.min(32, 16 + Math.floor(id * 0.65)),
+    minOptimal: Math.min(11, 7 + Math.floor((id - 10) / 5)),
+    maxOptimal: Math.min(30, 16 + Math.floor(id * 0.6)),
     difficulty,
   };
 }
@@ -583,7 +584,8 @@ function scrambleFromSolved(spec: LevelSpec, levelId: number): Board {
 }
 
 function timeLimitFor(spec: LevelSpec): number {
-  return Math.min(210, 55 + spec.colors * 12 + spec.nuts * 8);
+  // Difficulty rules v2: 15% less time than the original formula.
+  return Math.round(Math.min(210, 55 + spec.colors * 12 + spec.nuts * 8) * 0.85);
 }
 
 /**
@@ -597,6 +599,23 @@ export async function generateLevel(id: number): Promise<Level> {
   const attempts = id <= 10 ? 28 : 14;
   const generationStarted = Date.now();
   const generationBudget = id <= 10 ? 4_000 : 8_000;
+
+  const toLevel = (board: Board, moves: Move[]): Level => ({
+    id,
+    board: cloneBoard(board),
+    capacity: spec.capacity,
+    colors: spec.colors,
+    nutsPerColor: spec.nuts,
+    timeLimit: timeLimitFor(spec),
+    optimalMoves: moves.length,
+    solution: moves.map((move) => ({ ...move })),
+    createdAt: Date.now(),
+    difficulty: spec.difficulty,
+  });
+  // A fully certified board slightly below the target length is kept as a
+  // fallback so slow devices still get a verified, near-target puzzle.
+  const fallbackFloor = Math.max(2, Math.ceil(spec.minOptimal * 0.75));
+  let fallback: { board: Board; moves: Move[] } | null = null;
 
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     if (Date.now() - generationStarted >= generationBudget) break;
@@ -612,23 +631,17 @@ export async function generateLevel(id: number): Promise<Level> {
       continue;
     }
     if (result.moves.length < spec.minOptimal || result.moves.length > spec.maxOptimal) {
+      if (result.moves.length >= fallbackFloor && result.moves.length <= spec.maxOptimal
+        && (!fallback || result.moves.length > fallback.moves.length)) {
+        fallback = { board, moves: result.moves };
+      }
       await pause();
       continue;
     }
 
-    return {
-      id,
-      board: cloneBoard(board),
-      capacity: spec.capacity,
-      colors: spec.colors,
-      nutsPerColor: spec.nuts,
-      timeLimit: timeLimitFor(spec),
-      optimalMoves: result.moves.length,
-      solution: result.moves.map((move) => ({ ...move })),
-      createdAt: Date.now(),
-      difficulty: spec.difficulty,
-    };
+    return toLevel(board, result.moves);
   }
 
+  if (fallback) return toLevel(fallback.board, fallback.moves);
   throw new Error(`Could not certify a playable level ${id} within the generation budget. Please try again.`);
 }

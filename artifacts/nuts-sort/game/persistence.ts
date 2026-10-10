@@ -38,6 +38,10 @@ const schema = z.object({
   daily: z.object({ streak: integer, lastClaimDay: integer, lastReward: integer, totalClaimed: integer }),
   clock: z.object({ highWater: positive, lastResetDay: integer, suspicious: z.boolean() }),
   roundsPlayed: integer, interstitialDue: z.boolean(),
+  powerups: z.object({ hint: integer, undo: integer, extraBolt: integer })
+    .default({ hint: 0, undo: 0, extraBolt: 0 }),
+  // Saves written before difficulty rules v2 carry no marker.
+  levelRules: integer.default(1),
 });
 
 export async function readSave(): Promise<GameState | null> {

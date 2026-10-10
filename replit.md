@@ -22,7 +22,8 @@ Expo + React Native + TypeScript, Expo Router, React context, AsyncStorage, Zod,
 
 ## Architecture decisions
 
-- Store actual generated boards and their solver certificates, not seeds. Never regenerate an old board. Why: the user explicitly rejected fixed per-level seeds and requires exact replay.
+- Store actual generated boards and their solver certificates, not seeds. Never regenerate a completed board. Why: the user explicitly rejected fixed per-level seeds and requires exact replay.
+- Exception (owner's choice, Oct 2026): when level-generation rules change, bump `LEVEL_RULES_VERSION`; on load, unfinished levels (no record) and their attempts are discarded once so they rebuild with the new rules. Completed boards, records, coins and inventory are kept.
 - Persist currency, prizes, records and cosmetics in one serialized save. A corrupt or failed save is surfaced, not silently reset. Why: preserving earned coins matters more than hiding a storage failure.
 - Park unfinished attempts when switching levels; preserve remaining time on reset/background/relaunch. Why: navigation must not become a free alternative to rewarded time extensions.
 - Offline clock protection is best-effort: persist a wall-clock high-water mark and detect in-session jumps against a monotonic clock. Absolute protection against time changes across app restarts, save editing or reinstall is impossible without trusted external time/server state; don't claim otherwise.
@@ -34,16 +35,22 @@ Expo + React Native + TypeScript, Expo Router, React context, AsyncStorage, Zod,
 - Move exactly one TOP nut per move. Any target color is legal; reject only invalid/empty source, same column or full target. Each color must finish together in a unique pure column; added empty columns do not prevent winning.
 - Free reset resets nuts and move count, NOT remaining/elapsed time. No coins, ad or life required.
 - Five lives; lose exactly one only when time runs out and the player declines ad continuation. Winning/resetting are free. At local midnight restore to five. Rewarded ads add a life or 60 seconds; repeatable, without daily cap.
+- Difficulty rules v2 (owner, Oct 2026): a medium step up and 15% less time than v1, never impossible. Large-board minimum optimum is capped at what the on-device solver can certify within its budget; a certified board slightly below target is used as fallback rather than failing.
 - First ten levels are guaranteed and verified. Later levels are generated randomly and verified before play, with practical device bounds and increasing challenge. Never serve a board that the solver has not solved.
 - Five stars means at/very close to certified optimal move count. Every win earns at least one star. Coins depend on stars, move efficiency and speed, not level number or difficulty; same schedule for Level 1 and Level 1000.
 - Replay any unlocked old level. Pay its reward the first time; later pay only a positive improvement over the saved best reward, never the full reward repeatedly.
 - Daily entry rewards: 10 normally, 50 every seventh consecutive day, 100 every thirtieth. Special amounts replace that day's 10; monthly takes precedence on overlap. Missing a day resets both streaks. Coins already earned stay saved.
 - Light theme is default and free; dark/other themes cost coins. Shop sections: themes, nuts, bolts, bases, bundles. All cosmetic only. Bundles 15% cheaper; exclude owned components from price.
+- The shop also sells power-up stock (hint/undo/extra bolt) at fixed prices; packs cost coins, single units can also be earned by ad. Owned stock is consumed only when a valid effect applies.
 - Paid items/powers cost at least 50 coins, fixed prices. Hint shows one verified next move. Offer spending coins OR voluntarily watching an ad even with sufficient coins. Charge only when applying a valid effect.
 - Optional post-win reward ad doubles only the new award of that run, once, after completion. No reward for incomplete/failed/no-fill ads.
 - Interstitial after every two finished rounds only at a safe between-level boundary; app-open ad at cold opening; banners on all screens. Never pop an automatic full-screen ad during gameplay/moves.
 - Offline gameplay and saving work normally. Ad-dependent actions are unavailable without a functioning ad connection. No real-money IAP, notifications or accounts.
 - The phrase about a “first rewarded ad for the user” was a typing error and has NO product meaning.
+
+## Navigation (owner, Oct 2026)
+
+- Premium, glossy visual style. Home has Play (starts the next unlocked level directly), Continue (last unfinished attempt), Levels (organized into chapters/worlds), Shop and the daily reward.
 
 ## Communication
 

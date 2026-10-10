@@ -1,2 +1,2 @@
 - [Expo compatibility](expo-compatibility.md) — newer React Native style APIs and native ad imports that require web module isolation.
-- [Stack orientation checks](stack-orientation.md) — correct engine top semantics do not prove the visually topmost piece is the one moving.
+- [Stack orientation checks](stack-orientation.md) — correct engine top semantics do not prove the visually topmost piece is the one moving.- [Level generation budget](level-generation-budget.md) — raise difficulty via colors/time, not min optimum or scramble; measure generation success after spec changes.

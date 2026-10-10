@@ -2,8 +2,8 @@ import React, { createContext, useCallback, useContext, useEffect, useRef, useSt
 import { AppState } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useAudioPlayer } from 'expo-audio';
-import { CATALOG, POWER_PRICES, equipPurchased, itemPrice } from './catalogue';
-import { advanceCalendar, initialState, scoreRun } from './economy';
+import { CATALOG, POWER_PACKS, POWER_PRICES, equipPurchased, itemPrice } from './catalogue';
+import { advanceCalendar, applyLevelRules, initialState, scoreRun } from './economy';
 import { applyMove, generateLevel, isSolved, solveBoard } from './engine';
 import { readSave, writeSave } from './persistence';
 import { ActivePlayClock, elapseAttempt } from './timing';
@@ -12,7 +12,7 @@ import {
   showAppOpenAd, showInterstitialAd, showRewardedAd, subscribeAdState,
 } from '@/services/ads';
 import type {
-  ActionResult, Attempt, GameContextValue, GameState, Move, Payment, PowerUp,
+  ActionResult, Attempt, GameContextValue, GameState, Move, Payment, PowerPayment, PowerUp,
 } from './types';
 
 const GameContext = createContext<GameContextValue | null>(null);
@@ -118,7 +118,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       }
       const saved = await readSave();
       if (token !== generation.current) return;
-      const next = advanceCalendar(saved ?? initialState(Date.now()), Date.now());
+      const next = advanceCalendar(applyLevelRules(saved ?? initialState(Date.now())), Date.now());
       await writeSave(next);
       if (token !== generation.current) return;
       current.current = next;
@@ -364,13 +364,14 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     return isSolved(b);
   }
 
-  async function usePowerUp(kind: PowerUp, payment: Payment): Promise<ActionResult> {
+  async function usePowerUp(kind: PowerUp, payment: PowerPayment): Promise<ActionResult> {
     return exclusive(async () => {
       const a = current.current.active;
       if (!a || a.status !== 'playing') return fail('Start or resume a level first.');
       const price = POWER_PRICES[kind];
       if (!price) return fail('This power-up is not available.');
       if (payment === 'coins' && current.current.coins < price) return fail(`You need ${price} coins. You can choose a rewarded ad instead.`);
+      if (payment === 'stock' && current.current.powerups[kind] <= 0) return fail('You have none left. Buy more in the shop or choose another option.');
       let plan: Move[] = [];
       if (kind === 'undo' && a.history.length === 0) return fail('Make a move first. Nothing has been charged.');
       if (kind === 'hint') {
@@ -391,7 +392,12 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       const s = current.current;
       const live = s.active;
       if (!live || live.levelId !== a.levelId || live.status !== 'playing') return fail('This attempt is no longer active. Nothing has been charged.');
-      const paid = { ...s, coins: s.coins - (payment === 'coins' ? price : 0) };
+      if (payment === 'stock' && s.powerups[kind] <= 0) return fail('You have none left. Nothing has been used.');
+      const paid = {
+        ...s,
+        coins: s.coins - (payment === 'coins' ? price : 0),
+        powerups: payment === 'stock' ? { ...s.powerups, [kind]: s.powerups[kind] - 1 } : s.powerups,
+      };
       if (kind === 'hint') {
         await publish({ ...paid, active: { ...live, selected: null, hint: plan[0]!, hintPlan: plan } });
       } else if (kind === 'extraBolt') {
@@ -465,6 +471,25 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     });
   }
 
+  async function buyPowerPack(id: string, payment: Payment): Promise<ActionResult> {
+    return exclusive(async () => {
+      const pack = POWER_PACKS.find(p => p.id === id);
+      if (!pack) return fail('This pack is not available.');
+      if (payment === 'ad' && pack.count !== 1) return fail('Packs are bought with coins. Single items can be earned with an ad.');
+      if (payment === 'coins' && current.current.coins < pack.price) return fail(`This costs ${pack.price} coins.`);
+      if (payment === 'ad' && !await rewarded()) return { ok: false, message: 'No completed ad. No purchase was made.' };
+      const fresh = current.current;
+      if (payment === 'coins' && fresh.coins < pack.price) return fail(`This costs ${pack.price} coins.`);
+      await publish({
+        ...fresh,
+        coins: fresh.coins - (payment === 'coins' ? pack.price : 0),
+        powerups: { ...fresh.powerups, [pack.kind]: fresh.powerups[pack.kind] + pack.count },
+      });
+      feedback();
+      return success;
+    });
+  }
+
   function equipItem(id: string) {
     const s = current.current;
     if (storageFault.current) return;
@@ -484,6 +509,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     startLevel, tapColumn, resetLevel,
     setPlaying,
     abandonTimeout, usePowerUp, continueByAd, gainLifeByAd, doubleReward,
+    buyPowerPack, powerPacks: POWER_PACKS,
     buyItem, equipItem, updateSettings, clearNotice: () => setNotice(null),
     retryLoad: () => { void hydrate(); },
   };

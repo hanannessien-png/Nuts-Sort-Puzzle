@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
-import { initialState, advanceCalendar, scoreRun, localDay } from '../game/economy.ts';
-import { CATALOG, itemPrice, POWER_PRICES } from '../game/catalogue.ts';
+import { initialState, advanceCalendar, scoreRun, localDay, applyLevelRules, LEVEL_RULES_VERSION } from '../game/economy.ts';
+import { CATALOG, itemPrice, POWER_PRICES, POWER_PACKS } from '../game/catalogue.ts';
 
 const at = day => new Date(2026, 0, day, 10).getTime();
 let state = advanceCalendar(initialState(at(1)), at(1));
@@ -48,4 +48,29 @@ for (const item of CATALOG) {
   }
 }
 for (const price of Object.values(POWER_PRICES)) assert.ok(price >= 50);
-console.log('PASS: daily/weekly/monthly rewards, missed-day reset, midnight lives, clock guards, fixed scoring and bundle prices.');
+for (const pack of POWER_PACKS) {
+  assert.ok(pack.price >= 50, `${pack.id} costs at least 50`);
+  assert.ok(pack.price <= POWER_PRICES[pack.kind] * pack.count, `${pack.id} never costs more than singles`);
+}
+{
+  const fake = (id) => ({ id, board: [[0]], capacity: 1 });
+  const attempt = (levelId, status = 'playing') => ({ levelId, status, board: [[0]] });
+  const legacy = {
+    ...initialState(at(1)), levelRules: 1, coins: 777, powerups: { hint: 2, undo: 0, extraBolt: 1 },
+    levels: { 1: fake(1), 2: fake(2), 3: fake(3) },
+    records: { 1: { stars: 3, bestMoves: 5, bestSeconds: 9, bestReward: 40, plays: 1 } },
+    attempts: { 1: attempt(1), 2: attempt(2) }, active: attempt(3, 'timeout'),
+  };
+  const upgraded = applyLevelRules(legacy);
+  assert.deepEqual(Object.keys(upgraded.levels), ['1'], 'only completed boards survive the difficulty upgrade');
+  assert.deepEqual(Object.keys(upgraded.attempts), ['1']);
+  assert.equal(upgraded.active, null, 'unfinished active attempt on a rebuilt level is dropped');
+  assert.equal(upgraded.coins, 777);
+  assert.deepEqual(upgraded.records, legacy.records);
+  assert.deepEqual(upgraded.powerups, legacy.powerups);
+  assert.equal(upgraded.levelRules, LEVEL_RULES_VERSION);
+  assert.equal(applyLevelRules(upgraded), upgraded, 'upgrade runs once');
+  const kept = applyLevelRules({ ...legacy, active: attempt(1) });
+  assert.equal(kept.active.levelId, 1, 'replay of a completed board is kept');
+}
+console.log('PASS: difficulty upgrade keeps completed boards, power packs priced fairly, daily/weekly/monthly rewards, missed-day reset, midnight lives, clock guards, fixed scoring and bundle prices.');
