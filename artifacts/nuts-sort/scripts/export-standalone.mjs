@@ -5,9 +5,15 @@
  *
  *   node scripts/export-standalone.mjs
  *
- * Output (git-ignored):
- *   <repo>/generated-artifacts/nuts-sort-android/       ready-to-build folder
- *   <repo>/generated-artifacts/nuts-sort-android.zip    the same folder, zipped
+ * Output:
+ *   <repo>/expo-android/        ready-to-build project, COMMITTED to GitHub.
+ *                               Expo's GitHub build must use this folder as
+ *                               its "Base directory" (eas.json lives here).
+ *   <repo>/generated-artifacts/nuts-sort-android.zip   same files, zipped with
+ *                               eas.json at the top level (git-ignored).
+ *
+ * expo-android/ is outside the pnpm workspace globs, so Expo/EAS treat it as
+ * a plain npm project (package-lock.json) rather than a monorepo member.
  *
  * What changes compared to the in-repo copy:
  *  - package.json: every dependency is pinned to the exact version installed
@@ -27,8 +33,8 @@ import { fileURLToPath } from 'node:url';
 const appDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const repoRoot = path.resolve(appDir, '../..');
 const outRoot = path.join(repoRoot, 'generated-artifacts');
-const outDir = path.join(outRoot, 'nuts-sort-android');
-const zipPath = `${outDir}.zip`;
+const outDir = path.join(repoRoot, 'expo-android');
+const zipPath = path.join(outRoot, 'nuts-sort-android.zip');
 
 const EXCLUDE = new Set([
   'node_modules', '.expo', 'dist', 'static-build', 'web-build', 'android', 'ios',
@@ -40,6 +46,8 @@ const REPLIT_ONLY_DEPS = new Set(['create-launch']);
 rmSync(outDir, { recursive: true, force: true });
 rmSync(zipPath, { force: true });
 mkdirSync(outDir, { recursive: true });
+mkdirSync(outRoot, { recursive: true });
+rmSync(path.join(outRoot, 'nuts-sort-android'), { recursive: true, force: true });
 
 cpSync(appDir, outDir, {
   recursive: true,
@@ -96,6 +104,7 @@ execFileSync('npm', ['install', '--package-lock-only', '--ignore-scripts', '--no
   cwd: outDir, stdio: 'inherit',
 });
 
-execFileSync('zip', ['-qr', zipPath, path.basename(outDir)], { cwd: outRoot, stdio: 'inherit' });
+// Zip the folder's CONTENTS so eas.json/app.json/package.json sit at the top.
+execFileSync('zip', ['-qr', zipPath, '.'], { cwd: outDir, stdio: 'inherit' });
 console.log(`Standalone Android project: ${path.relative(repoRoot, outDir)}`);
 console.log(`Zip: ${path.relative(repoRoot, zipPath)}`);

@@ -56,29 +56,34 @@ guard, not proof of AdMob ownership, ad approval, valid signing, or store accept
    Replit's built-in Expo Launch/Publish flow currently targets iOS App Store
    publishing, not Google Play.
 
-## Standalone project for Expo (recommended)
+## Building on expo.dev from GitHub (the owner's flow)
 
-Inside Replit the app lives in a pnpm monorepo (`artifacts/nuts-sort`). To hand
-it to Expo on its own, generate the standalone copy:
+The GitHub repository is the whole Replit monorepo, so its root has no
+`eas.json` (Expo then fails with `Failed to read "/eas.json"`). The buildable
+project is the committed folder **`expo-android/`** at the repository root:
 
-```sh
-pnpm --filter @workspace/nuts-sort run export:android
-```
+1. Regenerate it after any change, then push to GitHub from Replit's Git pane:
+   `pnpm --filter @workspace/nuts-sort run export:android`
+2. On expo.dev → project → GitHub settings, set **Base directory** to
+   `expo-android` (it can also be set per build in the "Build from GitHub"
+   dialog).
+3. `app.json` `slug`, `owner` and `extra.eas.projectId` must match the
+   expo.dev project, or the build is rejected.
 
-This writes `generated-artifacts/nuts-sort-android/` and
-`generated-artifacts/nuts-sort-android.zip` (git-ignored). The copy:
+`expo-android/` is outside the pnpm workspace globs, so Expo treats it as a
+plain npm project (pinned versions + `package-lock.json`). Never edit it by
+hand; edit `artifacts/nuts-sort` and re-export. The export also writes
+`generated-artifacts/nuts-sort-android.zip` with eas.json at the top level.
 
-- pins every dependency to the exact version tested here and ships a
-  `package-lock.json` (npm), so `npm ci` reproduces the same tree;
-- drops Replit-only files (`server/`, `scripts/build.js`, preview helper);
-- keeps `app.json`, `eas.json`, assets, game code and the release preflight.
+eas.json details required for GitHub builds: each Android profile sets
+`image: "latest"`, and `appVersionSource` is `remote` so the production
+versionCode keeps increasing (a local auto-increment is never committed back
+by a GitHub build, so every upload would reuse the same versionCode).
 
-Re-run the export after **any** change (including adding the AdMob IDs);
-never edit the exported copy by hand. The export was verified in a clean
-folder: `npm ci`, TypeScript, all validators, `expo install --check`,
-Expo Doctor 21/21, Android Hermes export and `expo prebuild --platform
-android` (manifest contains the AdMob app ID and package
-`com.nutssort.puzzle`).
+Verified on a full copy of the repository, building from `expo-android/`:
+`npm ci`, TypeScript, all validators, `expo install --check`, Expo Doctor
+21/21, Android Hermes export and `expo prebuild --platform android` (AdMob
+app ID and `com.nutssort.puzzle` present in the manifest).
 
 The `build` script in the in-repo package.json is the Replit web/Expo Go
 packaging path; it does **not** produce an Android AAB.

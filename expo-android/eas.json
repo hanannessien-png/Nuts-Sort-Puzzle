@@ -1,0 +1,25 @@
+{
+  "cli": {
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk",
+        "image": "latest"
+      },
+      "env": {
+        "EXPO_PUBLIC_ADMOB_TEST_ADS": "1"
+      }
+    },
+    "production": {
+      "distribution": "store",
+      "autoIncrement": true,
+      "android": {
+        "buildType": "app-bundle",
+        "image": "latest"
+      }
+    }
+  }
+}

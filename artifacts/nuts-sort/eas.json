@@ -1,13 +1,14 @@
 {
   "cli": {
-    "appVersionSource": "local"
+    "appVersionSource": "remote"
   },
   "build": {
     "preview": {
       "distribution": "internal",
       "pnpm": "10.26.1",
       "android": {
-        "buildType": "apk"
+        "buildType": "apk",
+        "image": "latest"
       },
       "env": {
         "EXPO_PUBLIC_ADMOB_TEST_ADS": "1"
@@ -18,7 +19,8 @@
       "pnpm": "10.26.1",
       "autoIncrement": true,
       "android": {
-        "buildType": "app-bundle"
+        "buildType": "app-bundle",
+        "image": "latest"
       }
     }
   }

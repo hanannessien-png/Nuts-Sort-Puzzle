@@ -19,6 +19,8 @@ const check = (condition, message) => { if (!condition) errors.push(message); };
 const validId = (id, delimiter) => new RegExp(`^ca-app-pub-\\d{16}${delimiter}\\d{10}$`).test(id ?? '');
 check(app.android.package === 'com.nutssort.puzzle', 'Keep the existing Android application ID com.nutssort.puzzle.');
 check(Number.isSafeInteger(app.android.versionCode) && app.android.versionCode > 0, 'Android versionCode must be a positive integer.');
+check(eas.cli?.appVersionSource === 'remote', 'eas.json must use appVersionSource "remote" so GitHub builds keep increasing versionCode.');
+for (const name of ['preview', 'production']) check(Boolean(eas.build[name]?.android?.image), `eas.json ${name} profile needs android.image (required for Expo's "Build from GitHub").`);
 check(eas.build.production.android.buildType === 'app-bundle', 'Production must generate an Android App Bundle.');
 check(eas.build.production.env?.EXPO_PUBLIC_ADMOB_TEST_ADS === undefined, 'The production profile must not force Google test ads.');
 check(eas.build.preview?.env?.EXPO_PUBLIC_ADMOB_TEST_ADS === '1', 'The preview APK must force Google test ads so the owner never clicks live ads.');
