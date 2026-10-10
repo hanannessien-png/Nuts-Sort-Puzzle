@@ -1,7 +1,7 @@
 import type { GameState, Level } from './types';
 
 /** Bump when level generation rules change and unfinished boards should be rebuilt. */
-export const LEVEL_RULES_VERSION = 2;
+export const LEVEL_RULES_VERSION = 3;
 
 export const localDay = (time: number) => {
   const date = new Date(time);
@@ -47,11 +47,39 @@ export function initialState(now: number): GameState {
  */
 export function applyLevelRules(state: GameState): GameState {
   if (state.levelRules >= LEVEL_RULES_VERSION) return state;
-  const done = (id: number | string) => Boolean(state.records[String(id)]);
-  const levels = Object.fromEntries(Object.entries(state.levels).filter(([id]) => done(id)));
-  const attempts = Object.fromEntries(Object.entries(state.attempts).filter(([id]) => done(id)));
-  const active = state.active && done(state.active.levelId) ? state.active : null;
-  return { ...state, levels, attempts, active, levelRules: LEVEL_RULES_VERSION };
+  let next = state;
+  if (next.levelRules < 2) {
+    const done = (id: number | string) => Boolean(next.records[String(id)]);
+    next = {
+      ...next,
+      levels: Object.fromEntries(Object.entries(next.levels).filter(([id]) => done(id))),
+      attempts: Object.fromEntries(Object.entries(next.attempts).filter(([id]) => done(id))),
+      active: next.active && done(next.active.levelId) ? next.active : null,
+    };
+  }
+  if (next.levelRules < 3) next = shortenStoredTime(next);
+  return { ...next, levelRules: LEVEL_RULES_VERSION };
+}
+
+/**
+ * Rules v3: the owner asked for 10% less time. Boards stay identical; only
+ * each stored level's time limit shrinks, and unfinished attempts never keep
+ * more remaining time than their level's new limit.
+ */
+export const TIME_CUT_V3 = 0.9;
+function shortenStoredTime(state: GameState): GameState {
+  const levels: GameState['levels'] = {};
+  for (const [id, level] of Object.entries(state.levels)) {
+    levels[id] = { ...level, timeLimit: Math.max(1, Math.round(level.timeLimit * TIME_CUT_V3)) };
+  }
+  const cap = <T extends GameState['active']>(attempt: T): T => {
+    if (!attempt) return attempt;
+    const limit = levels[String(attempt.levelId)]?.timeLimit;
+    return limit !== undefined && attempt.remaining > limit ? { ...attempt, remaining: limit } : attempt;
+  };
+  const attempts: GameState['attempts'] = {};
+  for (const [id, attempt] of Object.entries(state.attempts)) attempts[id] = cap(attempt)!;
+  return { ...state, levels, attempts, active: cap(state.active) };
 }
 
 /**

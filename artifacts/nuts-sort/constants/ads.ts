@@ -32,8 +32,12 @@ export const ADMOB_TEST_AD_UNIT_IDS = {
 export type AdPlatform = keyof typeof ADMOB_TEST_APP_IDS;
 export type AdFormat = keyof typeof ADMOB_TEST_AD_UNIT_IDS;
 
-// Production inventory will be supplied by the owner. Keep Google test units
-// in every slot until then; no guessed publisher IDs or environment fallbacks.
+// ─── OWNER'S PRODUCTION AD UNITS ────────────────────────────────────────────
+// Replace each Android value with the owner's real ad-unit ID (format
+// ca-app-pub-XXXXXXXXXXXXXXXX/NNNNNNNNNN). The matching AdMob APP ID
+// (ca-app-pub-…~…) goes in app.json → react-native-google-mobile-ads →
+// androidAppId. Until then every slot is a Google test unit, and the
+// production preflight (scripts/validate-release.mjs) refuses a store build.
 export const ADMOB_AD_UNIT_IDS: Record<AdFormat, Record<AdPlatform, string>> = {
   banner: { ...ADMOB_TEST_AD_UNIT_IDS.banner },
   interstitial: { ...ADMOB_TEST_AD_UNIT_IDS.interstitial },
@@ -41,8 +45,17 @@ export const ADMOB_AD_UNIT_IDS: Record<AdFormat, Record<AdPlatform, string>> = {
   appOpen: { ...ADMOB_TEST_AD_UNIT_IDS.appOpen },
 };
 
+/**
+ * Development builds always use Google test units. The `preview` APK profile
+ * in eas.json also sets EXPO_PUBLIC_ADMOB_TEST_ADS=1 so the owner can install
+ * and test it without clicking their own live ads (which AdMob penalises).
+ * Only the `production` store build serves the real units above.
+ */
+const FORCE_TEST_ADS = typeof process !== 'undefined'
+  && process.env.EXPO_PUBLIC_ADMOB_TEST_ADS === '1';
+
 export function getAdUnitId(format: AdFormat, platform: AdPlatform): string {
-  return (__DEV__ ? ADMOB_TEST_AD_UNIT_IDS : ADMOB_AD_UNIT_IDS)[format][platform];
+  return (__DEV__ || FORCE_TEST_ADS ? ADMOB_TEST_AD_UNIT_IDS : ADMOB_AD_UNIT_IDS)[format][platform];
 }
 
 export function getTestAdUnitId(

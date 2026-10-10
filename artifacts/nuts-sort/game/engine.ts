@@ -31,6 +31,8 @@ interface LevelSpec {
   difficulty: Level['difficulty'];
 }
 
+/** Share of the original time formula that new levels receive (rules v3). */
+export const TIME_FACTOR = 0.765;
 const DEFAULT_MAX_NODES = 90_000;
 const DEFAULT_MAX_MS = 1_500;
 const YIELD_EVERY = 192;
@@ -584,8 +586,9 @@ function scrambleFromSolved(spec: LevelSpec, levelId: number): Board {
 }
 
 function timeLimitFor(spec: LevelSpec): number {
-  // Difficulty rules v2: 15% less time than the original formula.
-  return Math.round(Math.min(210, 55 + spec.colors * 12 + spec.nuts * 8) * 0.85);
+  // Rules v2 cut 15% from the original formula; rules v3 cut a further 10%
+  // (0.85 × 0.9 = 0.765). Stored levels are rescaled once in applyLevelRules.
+  return Math.round(Math.min(210, 55 + spec.colors * 12 + spec.nuts * 8) * TIME_FACTOR);
 }
 
 /**

@@ -8,6 +8,9 @@
       "pnpm": "10.26.1",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_ADMOB_TEST_ADS": "1"
       }
     },
     "production": {

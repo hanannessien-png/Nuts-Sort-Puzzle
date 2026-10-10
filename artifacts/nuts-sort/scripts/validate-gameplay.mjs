@@ -39,6 +39,8 @@ for (const viewport of [294, 334, 364, 404, 700]) {
     const g = boardGeometry(viewport, columns, capacity, 370);
     assert.equal(g.width, viewport, 'Board never extends sideways beyond its viewport');
     if (columns > 4) assert.ok(g.rows > 1, 'Additional columns are placed on rows BELOW, not off to the right');
+    assert.ok(g.columnsPerRow <= 4, 'At most four bolts per row');
+    assert.ok(g.height <= 370 + 0.001, 'Every row fits the available height without scrolling');
     for (let row = 1; row < capacity; row++) {
       assert.ok(g.y(row) < g.y(row - 1), 'Later array elements are visually ABOVE earlier elements');
     }
@@ -46,7 +48,7 @@ for (const viewport of [294, 334, 364, 404, 700]) {
     assert.ok(g.liftY + g.nutHeight < g.tipY, 'Travel clears the top of the entire bolt');
     assert.ok(g.y(0) + g.nutHeight <= g.baseY, 'Bottom nut rests above the base');
     for (let from = 0; from < columns; from++) {
-      assert.ok(g.x(from) >= 0 && g.x(from) + g.nutSize <= viewport, 'All columns stay on screen horizontally');
+      assert.ok(g.x(from) - 15 >= -0.001 && g.x(from) + g.nutSize + 15 <= viewport + 0.001, 'Bolts AND their wider bases stay inside the frame');
       assert.ok(g.rowTop(from) + g.rowHeight <= g.height + 0.001);
       for (let to = 0; to < columns; to++) {
         if (from === to) continue;
@@ -61,7 +63,7 @@ for (const viewport of [294, 334, 364, 404, 700]) {
           const lane = path[1].x;
           assert.equal(path[2].x, lane, 'Vertical travel stays in a clear side lane');
           for (let column = 0; column < columns; column++) {
-            assert.ok(lane + g.nutSize <= g.x(column) - 14 + 0.001 || lane >= g.x(column) + g.nutSize + 14 - 0.001,
+            assert.ok(lane + g.nutSize <= g.x(column) - 18 + 0.001 || lane >= g.x(column) + g.nutSize + 18 - 0.001,
               'Row-to-row travel avoids every nut and bolt base, not just the target');
           }
         }
@@ -69,5 +71,12 @@ for (const viewport of [294, 334, 364, 404, 700]) {
     }
    }
   }
+}
+// The adaptive rows and single side lane give advanced boards bigger pieces
+// than the old fixed 4-per-row layout with two lanes (same viewport).
+{
+  const oldNut = (w, h) => Math.min((w - 28) / (4 * 1.16 + 2), h / (3 * (1.42 + 5 * 0.42)));
+  const g = boardGeometry(320, 10, 5, 600);
+  assert.ok(g.nutSize > oldNut(320, 600), `10-bolt board pieces grow (${g.nutSize.toFixed(1)} vs ${oldNut(320, 600).toFixed(1)})`);
 }
 console.log('PASS: vertical board rows, bounded flight paths, top-only moves, above-tip geometry, invalid targets, win rules, paused timing, timeout bounds.');

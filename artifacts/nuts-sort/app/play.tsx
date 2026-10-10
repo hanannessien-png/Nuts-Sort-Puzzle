@@ -27,7 +27,7 @@ export default function PlayScreen() {
   const game = useGame();
   const theme = useThemeColors();
   const palette = useNutPalette();
-  const { state, tapColumn, usePowerUp, setPlaying } = game;
+  const { state, tapColumn, applyPowerUp, setPlaying } = game;
   const active = state.active;
 
   const [isPaused, setIsPaused] = useState(false);
@@ -41,6 +41,12 @@ export default function PlayScreen() {
   const [feedback, setFeedback] = useState<string | null>(null);
   const onBoardBusy = useCallback((value: boolean) => setAnimating(value), []);
   const onBoardSettled = useCallback((levelId: number, moves: number) => setSettledMove(`${levelId}:${moves}`), []);
+  // Feedback is a short-lived toast over the board, so it never costs board space.
+  React.useEffect(() => {
+    if (!feedback) return;
+    const timer = setTimeout(() => setFeedback(null), 3000);
+    return () => clearTimeout(timer);
+  }, [feedback]);
 
   useFocusEffect(
     useCallback(() => {
@@ -76,7 +82,7 @@ export default function PlayScreen() {
     if (animating || game.busy || active.status !== 'playing') return;
     setFeedback(null);
     if ((state.powerups[kind] ?? 0) > 0) {
-      const res = await usePowerUp(kind, 'stock');
+      const res = await applyPowerUp(kind, 'stock');
       if (!res.ok && res.message) setFeedback(res.message);
       return;
     }
@@ -91,7 +97,7 @@ export default function PlayScreen() {
     const kind = powerUpSheet;
     setPowerUpSheet(null);
     try {
-      const res = await usePowerUp(kind, payment);
+      const res = await applyPowerUp(kind, payment);
       if (!res.ok && res.message) setFeedback(res.message);
     } finally { setIsPaused(false); }
   };
@@ -105,62 +111,73 @@ export default function PlayScreen() {
     && column.every(color => color === column[0])
     && !active.board.some((other, otherIndex) => otherIndex !== index && other.includes(column[0]))).length;
   const lowTime = active.remaining < 15;
+  const colorCount = level?.colors ?? 3;
 
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
       <Backdrop image="home" strength={0.85} />
 
-      <View style={[styles.topBar, { paddingTop: insets.top + (Platform.OS === 'web' ? 40 : 8) }]}>
-        <MetalIconButton icon="chevron-back" size={42} testID="btn-back" label="Back to home"
+      {/* Top: navigation, clock, moves, level info and menus. */}
+      <View style={[styles.topBar, { paddingTop: insets.top + (Platform.OS === 'web' ? 40 : 6) }]}>
+        <MetalIconButton icon="chevron-back" size={40} testID="btn-back" label="Back to home"
           onPress={() => { setPlaying(false); setFocused(false); router.canGoBack() ? router.back() : router.replace('/'); }} />
         <View style={styles.statsPill}>
           <View style={styles.stat}>
-            <Ionicons name="time" size={17} color={lowTime ? '#FF5A66' : GOLD} />
+            <Ionicons name="time" size={16} color={lowTime ? '#FF5A66' : GOLD} />
             <Text testID="remaining-time" style={[styles.statText, lowTime && { color: '#FF7A84' }]}>{formatTime(active.remaining)}</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.stat}>
-            <Ionicons name="swap-vertical" size={17} color="#9CC7FF" />
+            <Ionicons name="swap-vertical" size={16} color="#9CC7FF" />
             <Text testID="move-count" style={styles.statText}>{active.moves}</Text>
           </View>
         </View>
-        <MetalIconButton icon="pause" size={42} testID="btn-pause" label="Pause game" disabled={locked}
-          onPress={() => { setPlaying(false); setIsPaused(true); }} />
-      </View>
-
-      {/* The complete table scales into this fixed viewport; gameplay never scrolls. */}
-      <View testID="play-table-viewport" style={styles.tableViewport}>
-        <View style={styles.levelHeader}>
-          <Text style={styles.levelTitle}>LEVEL {active.levelId}</Text>
-          <LinearGradient colors={[shade(GOLD, 0.25), shade(GOLD, -0.15)]} style={styles.diffChip}>
-            <Text style={styles.diffText}>{(level?.difficulty ?? 'Puzzle').toUpperCase()}</Text>
-          </LinearGradient>
+        <View style={styles.topActions}>
+          <MetalIconButton icon="settings-sharp" size={40} testID="btn-settings" label="Settings" disabled={locked}
+            onPress={() => { setPlaying(false); router.push('/settings'); }} />
+          <MetalIconButton icon="pause" size={40} testID="btn-pause" label="Pause game" disabled={locked}
+            onPress={() => { setPlaying(false); setIsPaused(true); }} />
         </View>
-        <LinearGradient colors={['#E9EDF3', '#9AA2B1', '#5D6575', '#A8B0BE']} locations={[0, 0.3, 0.7, 1]} style={styles.frame}>
-          <View style={[styles.boardCard, { backgroundColor: theme.surface }]}
-            onLayout={event => setBoardHeight(Math.max(1, event.nativeEvent.layout.height - 38))}>
-            <LinearGradient colors={['rgba(0,0,0,0.12)', 'transparent']} style={styles.innerShadow} pointerEvents="none" />
-            <PuzzleBoard active={active} availableHeight={boardHeight} enabled={focused && !isPaused} blocked={game.busy || game.adBusy}
-              colorLabels={state.settings.colorLabels} onTap={tapColumn} onBusy={onBoardBusy} onSettled={onBoardSettled} />
-            <View style={styles.boardProgress}>
-              {Array.from({ length: level?.colors ?? 3 }, (_, i) => (
-                <View key={i} style={[styles.progDot, { backgroundColor: palette[i % palette.length], opacity: i < sorted ? 1 : 0.3 }]} />
-              ))}
-              <Text style={[styles.progText, { color: theme.textMuted }]}>{sorted}/{level?.colors ?? 3} sorted</Text>
-            </View>
-          </View>
+      </View>
+      <View style={styles.infoStrip}>
+        <Text style={styles.levelTitle}>LEVEL {active.levelId}</Text>
+        <LinearGradient colors={[shade(GOLD, 0.25), shade(GOLD, -0.15)]} style={styles.diffChip}>
+          <Text style={styles.diffText}>{(level?.difficulty ?? 'Puzzle').toUpperCase()}</Text>
         </LinearGradient>
-        <Text style={styles.helper} numberOfLines={1}>
-          {feedback ?? (active.selected !== null ? 'Choose a new bolt, or tap the nut again to cancel' : 'Tap a top nut, then choose its new bolt')}
-        </Text>
+        <View style={{ flex: 1 }} />
+        <View style={styles.progress} accessibilityLabel={`${sorted} of ${colorCount} colors sorted`}>
+          {Array.from({ length: colorCount }, (_, i) => (
+            <View key={i} style={[styles.progDot, { backgroundColor: palette[i % palette.length], opacity: i < sorted ? 1 : 0.3 }]} />
+          ))}
+          <Text style={styles.progText}>{sorted}/{colorCount}</Text>
+        </View>
       </View>
 
-      <View style={[styles.powerups, { paddingBottom: 6 }]}>
-        {(['hint', 'undo', 'extraBolt'] as PowerUp[]).map(kind => (
-          <PowerUpButton key={kind} kind={kind} count={state.powerups[kind] ?? 0} disabled={locked}
-            onPress={() => void handlePowerUp(kind)} testID={`btn-${kind}`} />
-        ))}
+      {/* Middle: the board takes all remaining space; helpers sit in a rail on the right. */}
+      <View style={styles.playArea}>
+        {/* The complete table scales into this fixed viewport; gameplay never scrolls. */}
+        <View testID="play-table-viewport" style={styles.tableViewport}>
+          <LinearGradient colors={['#E9EDF3', '#9AA2B1', '#5D6575', '#A8B0BE']} locations={[0, 0.3, 0.7, 1]} style={styles.frame}>
+            <View style={[styles.boardCard, { backgroundColor: theme.surface }]}
+              onLayout={event => setBoardHeight(Math.max(1, event.nativeEvent.layout.height - 12))}>
+              <LinearGradient colors={['rgba(0,0,0,0.12)', 'transparent']} style={styles.innerShadow} pointerEvents="none" />
+              <PuzzleBoard active={active} availableHeight={boardHeight} enabled={focused && !isPaused} blocked={game.busy || game.adBusy}
+                colorLabels={state.settings.colorLabels} onTap={tapColumn} onBusy={onBoardBusy} onSettled={onBoardSettled} />
+            </View>
+          </LinearGradient>
+          {feedback && (
+            <Pressable onPress={() => setFeedback(null)} style={styles.toast} accessibilityRole="alert" testID="play-feedback">
+              <Text style={styles.toastText} numberOfLines={2}>{feedback}</Text>
+            </Pressable>
+          )}
+        </View>
+        <View style={styles.rail}>
+          {(['hint', 'undo', 'extraBolt'] as PowerUp[]).map(kind => (
+            <PowerUpButton key={kind} kind={kind} count={state.powerups[kind] ?? 0} disabled={locked}
+              onPress={() => void handlePowerUp(kind)} testID={`btn-${kind}`} />
+          ))}
+        </View>
       </View>
 
       {showGameOverlay && <GameOverlay />}
@@ -199,7 +216,8 @@ export default function PlayScreen() {
         </View>
       </Modal>
 
-      <View style={{ paddingBottom: insets.bottom }}><AdBanner /></View>
+      {/* Bottom: only the ad banner (it pads the system navigation inset itself). */}
+      <AdBanner />
     </View>
   );
 }
@@ -227,37 +245,42 @@ function PowerUpButton({ kind, count, onPress, disabled, testID }: { kind: Power
   );
 }
 
+const RAIL_WIDTH = 62;
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#11141E' },
   center: { justifyContent: 'center', alignItems: 'center' },
   bannerAbs: { position: 'absolute', left: 0, right: 0, bottom: 0 },
-  topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 14, paddingBottom: 6 },
-  statsPill: { flexDirection: 'row', alignItems: 'center', height: 40, paddingHorizontal: 14, borderRadius: 20, backgroundColor: 'rgba(14,17,28,0.8)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)' },
-  stat: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  statDivider: { width: 1, height: 20, backgroundColor: 'rgba(255,255,255,0.2)', marginHorizontal: 12 },
-  statText: { color: '#FFF', fontSize: 18, fontWeight: '900', fontVariant: ['tabular-nums'] },
-  tableViewport: { flex: 1, minHeight: 0, paddingTop: 2, paddingBottom: 4 },
-  levelHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 6 },
-  levelTitle: { color: '#FFF', fontSize: 24, fontWeight: '900', letterSpacing: 2, textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: { width: 0, height: 3 }, textShadowRadius: 0 },
-  diffChip: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
-  diffText: { color: '#3D2400', fontWeight: '900', fontSize: 11, letterSpacing: 1.2 },
-  frame: { flex: 1, minHeight: 0, marginHorizontal: 10, borderRadius: 28, padding: 4, shadowColor: '#000', shadowOpacity: 0.5, shadowRadius: 14, shadowOffset: { width: 0, height: 8 }, elevation: 10 },
-  boardCard: { flex: 1, minHeight: 0, borderRadius: 24, paddingTop: 4, paddingBottom: 6, justifyContent: 'center', overflow: 'hidden' },
+  topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 10, paddingBottom: 4, gap: 6 },
+  topActions: { flexDirection: 'row', gap: 6 },
+  statsPill: { flexDirection: 'row', alignItems: 'center', height: 38, paddingHorizontal: 12, borderRadius: 19, backgroundColor: 'rgba(14,17,28,0.8)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)' },
+  stat: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  statDivider: { width: 1, height: 18, backgroundColor: 'rgba(255,255,255,0.2)', marginHorizontal: 10 },
+  statText: { color: '#FFF', fontSize: 17, fontWeight: '900', fontVariant: ['tabular-nums'] },
+  infoStrip: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 10, marginBottom: 4, paddingHorizontal: 10, height: 28, borderRadius: 14, backgroundColor: 'rgba(14,17,28,0.6)' },
+  levelTitle: { color: '#FFF', fontSize: 15, fontWeight: '900', letterSpacing: 1.5 },
+  diffChip: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 },
+  diffText: { color: '#3D2400', fontWeight: '900', fontSize: 10, letterSpacing: 1 },
+  progress: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  progDot: { width: 8, height: 8, borderRadius: 4 },
+  progText: { color: 'rgba(255,255,255,0.8)', fontSize: 11, fontWeight: '800', marginLeft: 3, fontVariant: ['tabular-nums'] },
+  playArea: { flex: 1, minHeight: 0, flexDirection: 'row', paddingBottom: 6 },
+  tableViewport: { flex: 1, minHeight: 0, minWidth: 0 },
+  frame: { flex: 1, minHeight: 0, marginLeft: 6, borderRadius: 24, padding: 3, shadowColor: '#000', shadowOpacity: 0.5, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 10 },
+  boardCard: { flex: 1, minHeight: 0, borderRadius: 21, paddingVertical: 6, justifyContent: 'center', overflow: 'hidden' },
   innerShadow: { position: 'absolute', top: 0, left: 0, right: 0, height: 18 },
-  boardProgress: { height: 28, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 5 },
-  progDot: { width: 9, height: 9, borderRadius: 5 },
-  progText: { fontSize: 12, fontWeight: '800', marginLeft: 4 },
-  helper: { color: 'rgba(255,255,255,0.75)', textAlign: 'center', fontSize: 11, fontWeight: '600', paddingHorizontal: 16, marginTop: 6 },
-  powerups: { flexDirection: 'row', justifyContent: 'center', gap: 14, paddingHorizontal: 16, paddingTop: 8 },
-  pu: { flex: 1, maxWidth: 104, height: 58 },
-  puLip: { position: 'absolute', left: 0, right: 0, top: 5, bottom: 0, borderRadius: 18 },
-  puFace: { height: 53, borderRadius: 18, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.35)' },
-  puSheen: { position: 'absolute', top: 2, left: 5, right: 5, height: 22, borderRadius: 14 },
-  puLabel: { color: '#FFF', fontWeight: '900', fontSize: 11, letterSpacing: 1.2, textShadowColor: 'rgba(0,0,0,0.35)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1 },
-  puBadge: { position: 'absolute', top: -7, right: -6, minWidth: 24, height: 22, borderRadius: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 2, paddingHorizontal: 6, borderWidth: 2, borderColor: '#FFF' },
+  toast: { position: 'absolute', top: 10, left: 18, right: 12, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 14, backgroundColor: 'rgba(14,17,28,0.92)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
+  toastText: { color: '#FFF', fontSize: 12, fontWeight: '700', textAlign: 'center' },
+  rail: { width: RAIL_WIDTH, justifyContent: 'center', alignItems: 'center', gap: 18, paddingRight: 4 },
+  pu: { width: 50, height: 60 },
+  puLip: { position: 'absolute', left: 0, right: 0, top: 5, bottom: 0, borderRadius: 16 },
+  puFace: { height: 55, borderRadius: 16, alignItems: 'center', justifyContent: 'center', gap: 1, overflow: 'hidden', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.35)' },
+  puSheen: { position: 'absolute', top: 2, left: 4, right: 4, height: 22, borderRadius: 12 },
+  puLabel: { color: '#FFF', fontWeight: '900', fontSize: 9, letterSpacing: 0.8, textShadowColor: 'rgba(0,0,0,0.35)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1 },
+  puBadge: { position: 'absolute', top: -8, right: -5, minWidth: 22, height: 20, borderRadius: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 2, paddingHorizontal: 5, borderWidth: 2, borderColor: '#FFF' },
   puBadgeOwned: { backgroundColor: '#E8384A' },
   puBadgePrice: { backgroundColor: '#1A1F2C' },
-  puBadgeText: { color: '#FFF', fontWeight: '900', fontSize: 11 },
+  puBadgeText: { color: '#FFF', fontWeight: '900', fontSize: 10 },
   overlay: { flex: 1, backgroundColor: 'rgba(6,8,14,0.78)', justifyContent: 'center', padding: 20 },
   card: { width: '100%', maxWidth: 360, alignSelf: 'center' },
   sheetIcon: { width: 70, height: 70, borderRadius: 22, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', marginBottom: 10, borderWidth: 3, borderColor: 'rgba(255,255,255,0.6)' },

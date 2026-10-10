@@ -112,7 +112,7 @@ export interface GameContextValue {
   resetLevel: () => void;
   setPlaying: (playing: boolean) => void;
   abandonTimeout: () => void;
-  usePowerUp: (kind: PowerUp, payment: PowerPayment) => Promise<ActionResult>;
+  applyPowerUp: (kind: PowerUp, payment: PowerPayment) => Promise<ActionResult>;
   buyPowerPack: (id: string, payment: Payment) => Promise<ActionResult>;
   powerPacks: PowerPack[];
   continueByAd: () => Promise<ActionResult>;

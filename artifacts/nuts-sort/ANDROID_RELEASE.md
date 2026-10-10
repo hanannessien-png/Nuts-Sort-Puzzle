@@ -13,7 +13,9 @@ unavailable state and never award simulated rewards.
 
 `eas.json` prepares:
 
-- `preview`: internally distributed, installable Android APK.
+- `preview`: internally distributed, installable Android APK. It sets
+  `EXPO_PUBLIC_ADMOB_TEST_ADS=1`, so it always shows **Google test ads** even
+  after real IDs are added. Install it on your own phone safely.
 - `production`: store-distributed Android App Bundle (AAB), incrementing
   Android versionCode. The baseline versionCode is 1; match the existing
   Play listing's version history before the first upload.
@@ -54,23 +56,32 @@ guard, not proof of AdMob ownership, ad approval, valid signing, or store accept
    Replit's built-in Expo Launch/Publish flow currently targets iOS App Store
    publishing, not Google Play.
 
-## This is a pnpm monorepo
+## Standalone project for Expo (recommended)
 
-The app directory is `artifacts/nuts-sort`; its `app.json`, `eas.json`, package
-scripts and build working directory belong there. **Do not upload only that
-directory as a standalone repository.** Builds also need the repository-root
-`package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `.npmrc`, and referenced
-workspace packages (including `lib/api-client-react` and its dependencies).
-The workspace uses `workspace:*` and catalog dependency references. Preserve
-the workspace layout and lockfile; do not replace pnpm with npm or run a
-production-only dependency install (this scaffold has runtime packages in
-devDependencies). Build profiles pin pnpm 10.26.1.
+Inside Replit the app lives in a pnpm monorepo (`artifacts/nuts-sort`). To hand
+it to Expo on its own, generate the standalone copy:
 
-Do not include local `node_modules`, `.expo`, generated test export output or
-temporary Android validation directories in the source archive. Do not add
-an ignore rule that removes workspace dependencies needed at build time.
-The `build` script in package.json is the existing web/Replit packaging path;
-it does **not** produce an Android AAB.
+```sh
+pnpm --filter @workspace/nuts-sort run export:android
+```
+
+This writes `generated-artifacts/nuts-sort-android/` and
+`generated-artifacts/nuts-sort-android.zip` (git-ignored). The copy:
+
+- pins every dependency to the exact version tested here and ships a
+  `package-lock.json` (npm), so `npm ci` reproduces the same tree;
+- drops Replit-only files (`server/`, `scripts/build.js`, preview helper);
+- keeps `app.json`, `eas.json`, assets, game code and the release preflight.
+
+Re-run the export after **any** change (including adding the AdMob IDs);
+never edit the exported copy by hand. The export was verified in a clean
+folder: `npm ci`, TypeScript, all validators, `expo install --check`,
+Expo Doctor 21/21, Android Hermes export and `expo prebuild --platform
+android` (manifest contains the AdMob app ID and package
+`com.nutssort.puzzle`).
+
+The `build` script in the in-repo package.json is the Replit web/Expo Go
+packaging path; it does **not** produce an Android AAB.
 
 ## Ad placement behavior
 
@@ -110,8 +121,9 @@ unlock. Merely backgrounding/foregrounding is not proof that an ad has closed.
 A timed-out consent form similarly retains its lock until its native promise
 settles. If the native bridge never reports completion, restarting the app is
 the safe recovery; the app never silently resumes play underneath a known
-fullscreen presentation. Further ads are disabled for that session following
-a presentation timeout. Load-timeout listeners are fully removed, and component
+fullscreen presentation. Further ads stay disabled after a presentation
+timeout until that ad's late native close/error arrives (then they are
+available again) or the app restarts. Load-timeout listeners are fully removed, and component
 state subscriptions are removed on unmount.
 
 ## Native configuration and permission review
@@ -121,8 +133,9 @@ delayed app measurement until SDK initialization, and optimized initialization/
 ad loading. SDK initialization follows UMP consent rather than bypassing it.
 Expo audio is playback-only with recording/background playback disabled.
 
-Unused scaffold dependencies include location/image-picker. Android manifest
-merge removals explicitly block camera, microphone recording, coarse/fine/
+Unused scaffold packages (location, image-picker, blur, web-browser, symbols,
+glass-effect, keyboard-controller, react-query, workspace API client) were
+removed. Android manifest merge removals explicitly block camera, microphone recording, coarse/fine/
 background location, legacy storage, media-read and overlay permissions.
 Internet/network access, haptics and audio-playback-related permissions remain.
 Google Ads may contribute advertising-ID permissions in the final merged
@@ -178,7 +191,6 @@ Use Google test units/test devices for testing, never click live ads.
 
 ## References
 
-- [Expo monorepo builds](https://docs.expo.dev/build-reference/build-with-monorepos/)
 - [Expo Android APK/AAB distinction](https://docs.expo.dev/build-reference/apk/)
 - [Google app-open cold-start placement guidance](https://developers.google.com/admob/android/app-open)
 - [Google Mobile Ads React Native consent](https://docs.page/invertase/react-native-google-mobile-ads/european-user-consent)

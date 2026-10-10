@@ -139,7 +139,7 @@ export default function HomeScreen() {
         </Animated.View>
       </ScrollView>
 
-      <View style={{ paddingBottom: insets.bottom }}><AdBanner /></View>
+      <AdBanner />
 
       <Modal visible={showDaily} transparent animationType="fade" onRequestClose={() => setShowDaily(false)}>
         <View style={styles.modalOverlay}>

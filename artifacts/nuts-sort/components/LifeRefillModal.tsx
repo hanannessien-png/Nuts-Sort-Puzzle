@@ -14,9 +14,15 @@ interface Props {
 export function LifeRefillModal({ visible, onClose }: Props) {
   const game = useGame();
   const theme = useThemeColors();
+  const [message, setMessage] = React.useState<string | null>(null);
+  React.useEffect(() => { if (!visible) setMessage(null); }, [visible]);
   if (!visible) return null;
   const lives = game.state?.lives ?? 0;
-  const handleWatchAd = async () => { await game.gainLifeByAd(); };
+  const handleWatchAd = async () => {
+    setMessage(null);
+    const result = await game.gainLifeByAd();
+    if (!result.ok) setMessage(result.message ?? 'The ad could not be completed. Please try again.');
+  };
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -37,10 +43,11 @@ export function LifeRefillModal({ visible, onClose }: Props) {
           <Text style={[styles.count, { color: theme.text }]}>{lives} / 5</Text>
           <Text style={[styles.body, { color: theme.textMuted }]}>Watch a short video ad to refill 1 life and keep playing.</Text>
           <GlossButton
-            title={!game.adsAvailable ? 'UNAVAILABLE IN PREVIEW' : game.adBusy ? 'LOADING' : lives >= 5 ? 'MAX LIVES' : '+1 LIFE'}
+            title={!game.adsAvailable ? 'AD UNAVAILABLE' : game.adBusy ? 'LOADING' : lives >= 5 ? 'MAX LIVES' : '+1 LIFE'}
             icon={game.adsAvailable && lives < 5 ? 'play' : undefined} size="lg" color="#3FB24F"
             onPress={handleWatchAd} disabled={!game.adsAvailable || game.adBusy || lives >= 5} />
           {!game.adsAvailable && <Text style={[styles.small, { color: theme.textMuted }]}>{game.adStatus}</Text>}
+          {message && <Text accessibilityRole="alert" style={[styles.small, { color: theme.danger }]}>{message}</Text>}
         </Panel>
       </View>
     </Modal>

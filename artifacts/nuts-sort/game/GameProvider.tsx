@@ -364,7 +364,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     return isSolved(b);
   }
 
-  async function usePowerUp(kind: PowerUp, payment: PowerPayment): Promise<ActionResult> {
+  async function applyPowerUp(kind: PowerUp, payment: PowerPayment): Promise<ActionResult> {
     return exclusive(async () => {
       const a = current.current.active;
       if (!a || a.status !== 'playing') return fail('Start or resume a level first.');
@@ -508,7 +508,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     adStatus: ads.message, catalog: CATALOG,
     startLevel, tapColumn, resetLevel,
     setPlaying,
-    abandonTimeout, usePowerUp, continueByAd, gainLifeByAd, doubleReward,
+    abandonTimeout, applyPowerUp, continueByAd, gainLifeByAd, doubleReward,
     buyPowerPack, powerPacks: POWER_PACKS,
     buyItem, equipItem, updateSettings, clearNotice: () => setNotice(null),
     retryLoad: () => { void hydrate(); },

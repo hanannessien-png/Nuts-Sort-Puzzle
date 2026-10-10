@@ -184,6 +184,7 @@ function fullScreen(format: Exclude<AdFormat, 'banner'>, canShow: () => boolean)
     let finished = false;
     let earned = false;
     let presented = false;
+    let markedUncertain = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const subscriptions: Unsubscribe[] = [];
     const closureSubscriptions: Unsubscribe[] = [];
@@ -198,6 +199,9 @@ function fullScreen(format: Exclude<AdFormat, 'banner'>, canShow: () => boolean)
       clearTimeout(timer);
       cleanup(subscriptions);
       cleanup(closureSubscriptions);
+      // A late native CLOSED/ERROR is the closure evidence the watchdog was
+      // waiting for, so ads become available again without an app restart.
+      if (markedUncertain) presentationUncertain = false;
       unlock();
       if (!settled) {
         settled = true;
@@ -223,6 +227,7 @@ function fullScreen(format: Exclude<AdFormat, 'banner'>, canShow: () => boolean)
         clearTimeout(timer);
         timer = setTimeout(() => {
           presentationUncertain = true;
+          markedUncertain = true;
           settled = true;
           cleanup(subscriptions);
           notify();

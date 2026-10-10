@@ -192,7 +192,7 @@ export default function ShopScreen() {
         </Pressable>
       )}
 
-      <View style={{ paddingBottom: insets.bottom }}><AdBanner /></View>
+      <AdBanner />
 
       <Modal visible={!!sheetItem} transparent animationType="fade" onRequestClose={() => setSheetItem(null)}>
         <View style={styles.overlay}>

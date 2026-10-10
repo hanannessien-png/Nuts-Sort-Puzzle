@@ -40,9 +40,16 @@ export default function LevelsScreen() {
   const currentChapter = Math.floor((unlocked - 1) / PER_CHAPTER);
   const chapters = Array.from({ length: currentChapter + 2 }, (_, i) => i);
 
+  // Only an unfinished attempt is resumable. A won/lost board must start a
+  // fresh run instead of reopening its old result screen.
+  const unfinished = (id: number) => {
+    const attempt = state.active?.levelId === id ? state.active : state.attempts[id];
+    return attempt?.status === 'playing' || attempt?.status === 'timeout';
+  };
+
   const handlePlayLevel = async (id: number) => {
     setMessage(null);
-    if (state.active?.levelId === id) { router.push('/play'); return; }
+    if (state.active?.levelId === id && unfinished(id)) { router.push('/play'); return; }
     if (state.lives <= 0) { setShowLifeRefill(true); return; }
     const res = await startLevel(id);
     if (res.ok) router.push('/play');
@@ -109,7 +116,7 @@ export default function LevelsScreen() {
                 <View style={styles.grid}>
                   {ids.map(id => (
                     <LevelTile key={id} id={id} color={w.color} unlocked={unlocked}
-                      stars={state.records[id]?.stars ?? 0} inProgress={state.active?.levelId === id}
+                      stars={state.records[id]?.stars ?? 0} inProgress={unfinished(id)}
                       onPress={() => void handlePlayLevel(id)} />
                   ))}
                 </View>
@@ -119,7 +126,7 @@ export default function LevelsScreen() {
         })}
       </ScrollView>
 
-      <View style={{ paddingBottom: insets.bottom }}><AdBanner /></View>
+      <AdBanner />
       <LifeRefillModal visible={showLifeRefill} onClose={() => setShowLifeRefill(false)} />
     </View>
   );

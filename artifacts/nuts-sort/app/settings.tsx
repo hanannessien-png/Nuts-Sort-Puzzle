@@ -69,7 +69,7 @@ export default function SettingsScreen() {
           <AdPrivacySettings />
         </Panel>
       </ScrollView>
-      <View style={{ paddingBottom: insets.bottom }}><AdBanner /></View>
+      <AdBanner />
     </View>
   );
 }
