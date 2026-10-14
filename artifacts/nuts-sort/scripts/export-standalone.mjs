@@ -114,6 +114,17 @@ execFileSync('npm', ['install', '--package-lock-only', '--ignore-scripts', '--no
   cwd: outDir, stdio: 'inherit',
 });
 
+// Replit resolves packages through an internal mirror that Expo's build
+// servers cannot reach. Point every tarball at the public npm registry
+// (same tarballs, same integrity hashes); npm still maps registry.npmjs.org
+// to whatever registry is configured locally.
+const lockFile = path.join(outDir, 'package-lock.json');
+const lock = readFileSync(lockFile, 'utf8')
+  .replace(/"resolved": "https?:\/\/[^"/]*replit[^"/]*\/npm\//g, '"resolved": "https://registry.npmjs.org/');
+const leftover = lock.match(/"resolved": "(?!https:\/\/registry\.npmjs\.org\/)[^"]+"/);
+if (leftover) throw new Error(`package-lock.json still has a non-public tarball URL: ${leftover[0]}`);
+writeFileSync(lockFile, lock);
+
 // Zip the folder's CONTENTS so eas.json/app.json/package.json sit at the top.
 execFileSync('zip', ['-qr', zipPath, '.'], { cwd: outDir, stdio: 'inherit' });
 console.log(`Standalone Android project: ${path.relative(repoRoot, outDir)}`);

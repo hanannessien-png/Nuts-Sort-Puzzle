@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Nuts Sort Puzzle",
+    "name": "Screw Sort Master",
     "slug": "nuts-sort",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -11,7 +11,7 @@
       "supportsTablet": false
     },
     "android": {
-      "package": "com.nutssort.puzzle",
+      "package": "com.screwsort.master",
       "versionCode": 1,
       "blockedPermissions": [
         "android.permission.CAMERA",

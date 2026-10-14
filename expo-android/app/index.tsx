@@ -77,11 +77,11 @@ export default function HomeScreen() {
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <Animated.View entering={FadeInDown.duration(600)} style={styles.logoWrap}>
           <Text style={styles.logoKicker}>THE ORIGINAL</Text>
-          <Text style={[styles.logo, styles.logoTop]}>NUTS</Text>
+          <Text style={[styles.logo, styles.logoTop]}>SCREW</Text>
           <Text style={[styles.logo, styles.logoSort, { color: GOLD }]}>SORT</Text>
           <View style={styles.logoRule}>
             <View style={[styles.ruleLine, { backgroundColor: GOLD }]} />
-            <Text style={styles.ruleText}>PUZZLE</Text>
+            <Text style={styles.ruleText}>MASTER</Text>
             <View style={[styles.ruleLine, { backgroundColor: GOLD }]} />
           </View>
         </Animated.View>

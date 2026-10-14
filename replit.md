@@ -1,4 +1,4 @@
-# Nuts Sort Puzzle
+# Screw Sort Master (formerly Nuts Sort Puzzle)
 
 Offline-first mobile color-sorting game with single-nut moves, solver-verified levels, local progress, cosmetic collections and optional rewarded advertising.
 
