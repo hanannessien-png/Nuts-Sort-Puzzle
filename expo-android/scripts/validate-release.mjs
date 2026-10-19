@@ -17,7 +17,7 @@ const plugin = app.plugins.find(p => Array.isArray(p) && p[0] === 'react-native-
 const errors = [];
 const check = (condition, message) => { if (!condition) errors.push(message); };
 const validId = (id, delimiter) => new RegExp(`^ca-app-pub-\\d{16}${delimiter}\\d{10}$`).test(id ?? '');
-check(app.android.package === 'com.screwsort.master', 'Keep the Android application ID com.screwsort.master (owner-chosen; it can never change after the first Play upload).');
+check(app.android.package === 'com.apex.screwsort', 'Keep the Android application ID com.apex.screwsort (owner-chosen; it can never change after the first Play upload).');
 check(app.name === 'Screw Sort Master', 'The app name must stay "Screw Sort Master".');
 check(Number.isSafeInteger(app.android.versionCode) && app.android.versionCode > 0, 'Android versionCode must be a positive integer.');
 check(eas.cli?.appVersionSource === 'remote', 'eas.json must use appVersionSource "remote" so GitHub builds keep increasing versionCode.');

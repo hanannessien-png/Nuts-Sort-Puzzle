@@ -11,7 +11,7 @@
       "supportsTablet": false
     },
     "android": {
-      "package": "com.screwsort.master",
+      "package": "com.apex.screwsort",
       "versionCode": 1,
       "blockedPermissions": [
         "android.permission.CAMERA",

@@ -2,7 +2,7 @@
 
 ## Current state
 
-The app is named **Screw Sort Master** and its Android application ID is **com.screwsort.master** (owner-chosen before the first Play upload; never change it after that). Expo stays on SDK 57
+The app is named **Screw Sort Master** and its Android application ID is **com.apex.screwsort** (owner-chosen before the first Play upload; never change it after that). Expo stays on SDK 57
 and React Native 0.86.3. Configuration is static `app.json`; there are no
 committed/generated Android or iOS projects.
 
@@ -85,7 +85,7 @@ by a GitHub build, so every upload would reuse the same versionCode).
 Verified on a full copy of the repository, building from `expo-android/`:
 `npm ci`, TypeScript, all validators, `expo install --check`, Expo Doctor
 21/21, Android Hermes export and `expo prebuild --platform android` (AdMob
-app ID and `com.screwsort.master` present in the manifest).
+app ID and `com.apex.screwsort` present in the manifest).
 
 The `build` script in the in-repo package.json is the Replit web/Expo Go
 packaging path; it does **not** produce an Android AAB.
