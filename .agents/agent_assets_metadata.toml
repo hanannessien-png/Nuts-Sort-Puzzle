@@ -1,0 +1,100 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "CGHyyNoJjkHC2gijTJEgA"
+uri = "file://generated-artifacts/play-store/app-icon-512.png"
+type = "image"
+title = "App icon 512×512"
+description = "Google Play app icon — PNG 512×512."
+logical_id = "d82992f1-5972-470c-9cb5-8ed53be29322"
+content_hash = "sha256:832a2790e477327d1ae028df253a39f47069bb5874d0d8c788f0c7d6af79d9bf"
+size = 329550
+mtime_ms = 1792446971586
+storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:b6848105-fae6-4da6-a118-1bbcda0431b1/d82992f1-5972-470c-9cb5-8ed53be29322/86d604ca-2bb8-4b5d-96a5-8f76bdc905ea"
+storage_version_token = "1792447458822661"
+content_type = "image/png"
+
+[[outputs]]
+id = "7Svg-EzUJZlagH1ASImxu"
+uri = "file://generated-artifacts/play-store/feature-graphic-1024x500.png"
+type = "image"
+title = "Feature graphic 1024×500"
+description = "Google Play feature graphic — PNG 1024×500, no transparency."
+logical_id = "f268cafc-046d-4a19-a028-19869fa5a185"
+content_hash = "sha256:2d430b25b3bf7b0b1d728632d8e4625b67e412856dc66b5394a3533245b57157"
+size = 496330
+mtime_ms = 1792446971078
+storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:b6848105-fae6-4da6-a118-1bbcda0431b1/f268cafc-046d-4a19-a028-19869fa5a185/dd541e23-a8c3-44da-938b-df4609d60cb1"
+storage_version_token = "1792447459610949"
+content_type = "image/png"
+
+[[outputs]]
+id = "wUL_m1oyqOcYsWceGpdWO"
+uri = "file://generated-artifacts/play-store/screenshots/screenshot-1-home.png"
+type = "image"
+title = "Screenshot 1 — Home"
+description = "Phone screenshot 1080×2160."
+logical_id = "3ffe771a-3446-457e-8984-54ea82a9168b"
+content_hash = "sha256:4d67aacc4508b870d10ac80a317207db202a36df403e372251b51c66e9f7feb3"
+size = 1564880
+mtime_ms = 1792446973138
+storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:b6848105-fae6-4da6-a118-1bbcda0431b1/3ffe771a-3446-457e-8984-54ea82a9168b/61b69154-0f2e-4969-af27-895de572a16a"
+storage_version_token = "1792447460259066"
+content_type = "image/png"
+
+[[outputs]]
+id = "ecglqJW2ZiJ1jdk6Ng9p6"
+uri = "file://generated-artifacts/play-store/screenshots/screenshot-2-play.png"
+type = "image"
+title = "Screenshot 2 — Gameplay"
+description = "Phone screenshot 1080×2160."
+logical_id = "13319923-22de-483b-8692-cf8483221b9e"
+content_hash = "sha256:b532ee313c6f0ba8dd832df9730e9f22c531b5e78908390b3eda5d74638a6334"
+size = 768712
+mtime_ms = 1792446974006
+storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:b6848105-fae6-4da6-a118-1bbcda0431b1/13319923-22de-483b-8692-cf8483221b9e/35756602-ab3e-4cf0-8715-355a89f51807"
+storage_version_token = "1792447461081179"
+content_type = "image/png"
+
+[[outputs]]
+id = "FxQi6wx-YDikPhnbvNcVh"
+uri = "file://generated-artifacts/play-store/screenshots/screenshot-3-levels.png"
+type = "image"
+title = "Screenshot 3 — Levels"
+description = "Phone screenshot 1080×2160."
+logical_id = "fdcacd1d-660f-4b22-b656-eeb70d0faedb"
+content_hash = "sha256:75f45925e1d91edac6abd7987b48eb2e479bd0cb9ee655695d91f32f62bb3ec4"
+size = 1431787
+mtime_ms = 1792446975382
+storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:b6848105-fae6-4da6-a118-1bbcda0431b1/fdcacd1d-660f-4b22-b656-eeb70d0faedb/b4a8233b-a51a-461b-a8c9-793b1b770ace"
+storage_version_token = "1792447461889860"
+content_type = "image/png"
+
+[[outputs]]
+id = "7fSohBbIST_ymkJBpgN2U"
+uri = "file://generated-artifacts/play-store/screenshots/screenshot-4-shop.png"
+type = "image"
+title = "Screenshot 4 — Shop"
+description = "Phone screenshot 1080×2160."
+logical_id = "64047609-7ebc-4fa6-8ac1-39a0cb708a5a"
+content_hash = "sha256:e1d5c2cc108ddf687cd41c893de77bc8c978a3babaab3823aa9d6ba7aaa970a5"
+size = 1629154
+mtime_ms = 1792446976690
+storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:b6848105-fae6-4da6-a118-1bbcda0431b1/64047609-7ebc-4fa6-8ac1-39a0cb708a5a/15988e91-42e9-435c-b07e-f35e0170d624"
+storage_version_token = "1792447462738882"
+content_type = "image/png"
+
+[[outputs]]
+id = "Y-xFDBKPon96Mt28sLdzI"
+uri = "file://generated-artifacts/play-store/screenshots/screenshot-5-daily.png"
+type = "image"
+title = "Screenshot 5 — Daily reward"
+description = "Phone screenshot 1080×2160."
+logical_id = "bd3178b4-7f96-4a2e-b6b5-cb69427e0723"
+content_hash = "sha256:b160f30ff24baaa1e45bcf84b51333b529d1ba2b94abe9c912bbceea173d985e"
+size = 493887
+mtime_ms = 1792446977378
+storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:b6848105-fae6-4da6-a118-1bbcda0431b1/bd3178b4-7f96-4a2e-b6b5-cb69427e0723/dd6e28d2-5bd8-496c-9beb-d780f21f6db6"
+storage_version_token = "1792447463469064"
+content_type = "image/png"

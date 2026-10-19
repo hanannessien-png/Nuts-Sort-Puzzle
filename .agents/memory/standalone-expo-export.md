@@ -14,3 +14,5 @@ The owner uses expo.dev "Build from GitHub" on the whole monorepo repo, so the e
 npm in Replit writes lockfile `resolved` URLs pointing at Replit's internal package mirror, which Expo's servers cannot reach; the export must rewrite them to registry.npmjs.org (it fails loudly if any remain). Owner's Expo identity (owner/projectId) is injected only into the export so the in-repo app.json stays unlinked for Replit's managed Expo Go preview.
 
 Patch drift reported by expo-doctor may be unfixable for ~24h: the workspace's pnpm `minimumReleaseAge` blocks packages published in the last day. Harmless patch-only mismatch; do not bypass the security setting, retry later.
+
+Local `npm ci` of the export can 404 on packages named `npm-*` (Replit mirror mangles the path when mapping registry.npmjs.org); EAS is unaffected. To verify locally, rewrite lock URLs back to the mirror in a /tmp copy only.
