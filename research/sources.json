@@ -1,0 +1,82 @@
+[
+  {
+    "key": "inspired",
+    "title": "Inspired Square color sort",
+    "url": "https://play.google.com/store/apps/details?id=com.inspiredsquare.nut.sort",
+    "evidence": "research/sources/listing-0-01-inspired-square.md",
+    "tier": 3,
+    "date": "undated; accessed 2026-11-05"
+  },
+  {
+    "key": "people",
+    "title": "People Lovin Games nuts sort",
+    "url": "https://play.google.com/store/apps/details?id=game.nuts.nutsort.watersort.color.puzzles",
+    "evidence": "research/sources/listing-0-02-people-lovin.md",
+    "tier": 3,
+    "date": "undated; accessed 2026-11-05"
+  },
+  {
+    "key": "leafy",
+    "title": "Leafy Games Nut Sort",
+    "url": "https://play.google.com/store/apps/details?id=com.leaf.nutsort.color.puzzles",
+    "evidence": "research/sources/listing-0-03-leafy-sort.md",
+    "tier": 3,
+    "date": "undated; accessed 2026-11-05"
+  },
+  {
+    "key": "wemaster",
+    "title": "WeMaster Screw Puzzle",
+    "url": "https://play.google.com/store/apps/details?id=com.tangle.nuts.bolts",
+    "evidence": "research/sources/listing-1-01-screw-puzzle-nuts-bolts.md",
+    "tier": 3,
+    "date": "undated; accessed 2026-11-05"
+  },
+  {
+    "key": "tripledot",
+    "title": "Nut Sort",
+    "url": "https://apps.apple.com/us/app/nut-sort-color-sorting-game/id6476144780",
+    "evidence": "research/sources/listing-1-02-nut-sort.md",
+    "tier": 3,
+    "date": "undated; accessed 2026-11-05"
+  },
+  {
+    "key": "water",
+    "title": "Liquid Sort Puzzle",
+    "url": "https://www.tumbgames.com/games/liquid-sort-puzzle",
+    "evidence": "research/sources/listing-1-03-liquid-sort.md",
+    "tier": 3,
+    "date": "undated; accessed 2026-11-05"
+  },
+  {
+    "key": "best",
+    "title": "Google listing best practices",
+    "url": "https://support.google.com/googleplay/android-developer/answer/13393723",
+    "evidence": "research/sources/listing-2-01-best-practices.md",
+    "tier": 1,
+    "date": "undated; accessed 2026-11-05"
+  },
+  {
+    "key": "metadata",
+    "title": "Google metadata policy",
+    "url": "https://support.google.com/googleplay/android-developer/answer/9898842",
+    "evidence": "research/sources/listing-2-02-metadata-policy.md",
+    "tier": 1,
+    "date": "undated; accessed 2026-11-05"
+  },
+  {
+    "key": "experiments",
+    "title": "Google listing experiments",
+    "url": "https://support.google.com/googleplay/android-developer/answer/6227309",
+    "evidence": "research/sources/listing-2-03-experiments.md",
+    "tier": 1,
+    "date": "undated; accessed 2026-11-05"
+  },
+  {
+    "key": "discovery",
+    "title": "Google discovery and ranking",
+    "url": "https://support.google.com/googleplay/android-developer/answer/9958766?hl=en-GB",
+    "evidence": "research/sources/listing-2-snippets.md",
+    "tier": 1,
+    "date": "undated; accessed 2026-11-05"
+  }
+]

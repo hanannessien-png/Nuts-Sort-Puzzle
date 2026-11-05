@@ -98,3 +98,45 @@ mtime_ms = 1792446977378
 storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:b6848105-fae6-4da6-a118-1bbcda0431b1/bd3178b4-7f96-4a2e-b6b5-cb69427e0723/dd6e28d2-5bd8-496c-9beb-d780f21f6db6"
 storage_version_token = "1792447463469064"
 content_type = "image/png"
+
+[[outputs]]
+id = "-tGJ8gikRr46veHldYcEv"
+uri = "file://research/notes.md"
+type = "text"
+title = "بحث وصف اللعبة على Google Play"
+description = "خطة البحث وملاحظات المصادر."
+logical_id = "f50a37e2-3697-46ca-800a-f928081cf3d3"
+content_hash = "sha256:f219385b568e302a15c261d96ba538ab12d0e102ad94cce58e3bc567743f8bea"
+size = 1054
+mtime_ms = 1793842826823
+storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:b6848105-fae6-4da6-a118-1bbcda0431b1/f50a37e2-3697-46ca-800a-f928081cf3d3/82e68f98-f03b-4c16-96a9-9b01b924a839"
+storage_version_token = "1793842827604630"
+content_type = "text/markdown"
+
+[[outputs]]
+id = "XiXuDGjIO73apiABvsVZB"
+uri = "file://research/store-descriptions-en.txt"
+type = "text"
+title = "الوصف المختصر والكامل بالإنجليزي"
+description = "نصوص جاهزة للنسخ: 78 حرفًا و2683 حرفًا."
+logical_id = "467a4643-05b7-4a67-b14a-8569cbf6c9e8"
+content_hash = "sha256:2e46c81b3894beb83dd68746bb662717d2c361a60de77a24076857586959a7ba"
+size = 2841
+mtime_ms = 1793842904535
+storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:b6848105-fae6-4da6-a118-1bbcda0431b1/467a4643-05b7-4a67-b14a-8569cbf6c9e8/ee304857-d5ca-4d83-b3ff-b5a24ee36931"
+storage_version_token = "1793842931832750"
+content_type = "text/plain"
+
+[[outputs]]
+id = "FDsUkvUte7ahNTC2mD9Jm"
+uri = "file://research/screw-sort-listing-research.md"
+type = "text"
+title = "نتائج بحث المنافسين وإرشادات Google"
+description = "مقارنة المنافسين والمصادر وحدود النتائج."
+logical_id = "728457e0-64ab-43dc-baa4-3095aa3b33be"
+content_hash = "sha256:e24533580669722ed8487f946a1814ad9e16d4c90d81ef8eaad4e1bba9220022"
+size = 5195
+mtime_ms = 1793842931383
+storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:b6848105-fae6-4da6-a118-1bbcda0431b1/728457e0-64ab-43dc-baa4-3095aa3b33be/dd2e6777-4334-4f84-8520-ddee9eb59537"
+storage_version_token = "1793842932478567"
+content_type = "text/markdown"
